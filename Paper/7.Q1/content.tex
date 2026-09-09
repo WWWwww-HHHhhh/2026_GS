@@ -1,0 +1,48 @@
+% !TeX root = ../main.tex
+\section{问题一：模型建立与求解}
+\subsection{建模思路与变量定义}
+【定义决策变量、参数和指标，说明模型选择依据。】
+
+\subsection{模型建立}
+【将以下示例公式改为实际模型，并解释每个目标项与约束的实际含义。】
+\begin{equation}
+  \min_{\boldsymbol{x}}\; F(\boldsymbol{x})=\sum_{i=1}^{n} w_i x_i^2
+  \label{eq:objective}
+\end{equation}
+\begin{equation}
+  \begin{aligned}
+    \text{s.t.}\quad & \sum_{i=1}^{n} x_i \leq B,\\
+                     & x_i \geq 0,\quad i=1,2,\ldots,n.
+  \end{aligned}
+  \label{eq:constraints}
+\end{equation}
+其中，$w_i$ 表示【填写】，$B$ 表示【填写】。式\eqref{eq:objective}和式\eqref{eq:constraints}仅为排版示例。
+
+\subsection{求解方法与实现}
+\begin{enumerate}
+  \item 【输入数据并设置参数。】
+  \item 【说明计算方法、主要步骤和终止条件。】
+  \item 【输出结果，并说明如何检验可行性和准确性。】
+\end{enumerate}
+
+\subsection{结果与分析}
+【结合表\ref{tab:results}解释结果，直接回答题目要求。表中不得保留演示内容。】
+\begin{table}[htbp]
+  \centering
+  \caption{问题一的主要计算结果}\label{tab:results}
+  \begin{tabularx}{0.95\linewidth}{Xccc}
+    \toprule
+    方案 & 指标一 & 指标二 & 指标三 \\
+    \midrule
+    【基准方案】 & 【待填】 & 【待填】 & 【待填】 \\
+    【优化方案】 & 【待填】 & 【待填】 & 【待填】 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{模型检验与灵敏度分析}
+【填写问题一的检验指标、对照方法、误差及适用条件。】
+
+【说明关键参数的变化范围、结果变化和稳定性；填写实际检验结果。】
+
+
