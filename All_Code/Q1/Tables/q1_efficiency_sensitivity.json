@@ -1,0 +1,38 @@
+{
+  "purpose": "Interpretation sensitivity only; the primary Q1 result uses eta_charge=eta_discharge=0.9.",
+  "no_storage_baseline_cost_yuan": 48052.04659084666,
+  "cases": [
+    {
+      "case": "charge_and_discharge_each_90_percent",
+      "eta_charge": 0.9,
+      "eta_discharge": 0.9,
+      "round_trip_efficiency": 0.81,
+      "purchase_cost_yuan": 35126.948689289624,
+      "total_purchase_kwh": 59482.69876179719,
+      "total_charge_kwh": 20740.664886651888,
+      "total_discharge_kwh": 16799.938558188027,
+      "saving_vs_no_storage_yuan": 12925.097901557034,
+      "saving_rate_vs_no_storage": 0.2689812155476248,
+      "soc_min_kwh": 1200.0,
+      "soc_max_kwh": 10800.0,
+      "max_balance_residual_kwh": 2.2737367544323206e-13,
+      "max_soc_recursion_residual_kwh": 8.313350008393172e-13
+    },
+    {
+      "case": "round_trip_90_percent_symmetric",
+      "eta_charge": 0.9486832980505138,
+      "eta_discharge": 0.9486832980505138,
+      "round_trip_efficiency": 0.8999999999999999,
+      "purchase_cost_yuan": 33801.495642222,
+      "total_purchase_kwh": 57526.24327044582,
+      "total_charge_kwh": 19842.708371124947,
+      "total_discharge_kwh": 17858.437534012453,
+      "saving_vs_no_storage_yuan": 14250.55094862466,
+      "saving_rate_vs_no_storage": 0.29656491158358317,
+      "soc_min_kwh": 1200.0,
+      "soc_max_kwh": 10800.0,
+      "max_balance_residual_kwh": 2.2737367544323206e-13,
+      "max_soc_recursion_residual_kwh": 9.094947017729282e-13
+    }
+  ]
+}
