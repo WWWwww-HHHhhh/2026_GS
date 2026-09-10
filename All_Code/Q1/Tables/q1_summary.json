@@ -1,0 +1,36 @@
+{
+  "C1_true_purchase_cost_yuan": 35126.948589289634,
+  "J1_objective_with_eps_yuan": 35164.48919498802,
+  "total_purchase_kwh": 59482.69899835391,
+  "total_curtailment_kwh": 0.0,
+  "storage_throughput_kwh": 37540.60569835392,
+  "charge_kwh": 20740.66613168725,
+  "discharge_kwh": 16799.939566666668,
+  "eps_yuan_per_kwh": 0.001,
+  "validation": {
+    "max_abs_balance_residual_kwh": 2.2737367544323206e-13,
+    "max_abs_soc_recursion_residual_kwh": 8.313350008393172e-13,
+    "soc_min": 1200.0,
+    "soc_max": 10800.0,
+    "soc_within_bounds": true,
+    "s0_equals_sT": true,
+    "max_charge_kwh": 833.3333333333333,
+    "max_discharge_kwh": 715.6530333333333,
+    "charge_discharge_within_power_limit": true,
+    "curtailment_nonnegative_and_le_pv": true,
+    "simultaneous_charge_discharge_max_product": 0.0
+  },
+  "perturbation_check": {
+    "t_probe": 100,
+    "grad_bal": 0.9162999999971362,
+    "grad_soc": -0.004333333330578171
+  },
+  "mu_soc_stats": {
+    "min": -1.12959,
+    "max": -0.4722222222222222
+  },
+  "mu_bal_stats": {
+    "min": 0.3713,
+    "max": 1.2561
+  }
+}
