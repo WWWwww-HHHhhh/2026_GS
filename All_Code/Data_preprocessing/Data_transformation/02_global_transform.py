@@ -74,21 +74,25 @@ def _interval_label(idx: int) -> str:
     return f"{_period_start(idx)}-{_period_end(idx)}"
 
 
-def _template_endpoint(k: int, first_plus: bool) -> str:
+def _template_endpoint(k: int, first_plus: bool, position: str) -> str:
     minutes = k * 10
     if minutes == 1440:
+        if position == "end":
+            return "0:00+1"
         return "0:00+1" if first_plus else "0:00"
     if minutes > 1440:
         minutes -= 1440
         return f"{minutes // 60}:{minutes % 60:02d}+1"
     h, m = divmod(minutes, 60)
     if h == 7 and m == 0:
-        return "7:0" if not first_plus else "7:00"
+        if position == "start" and not first_plus:
+            return "7:0"
+        return "7:00"
     return f"{h}:{m:02d}"
 
 
 def _template_label(k: int, first_plus: bool) -> str:
-    return f"{_template_endpoint(k, first_plus)}-{_template_endpoint(k + 1, first_plus)}"
+    return f"{_template_endpoint(k, first_plus, 'start')}-{_template_endpoint(k + 1, first_plus, 'end')}"
 
 
 def template_col_label(idx: int) -> str:
@@ -130,7 +134,10 @@ def parse_time_to_index(value) -> int:
             return int(m.group(1))
         minutes = _string_time_to_minutes(s)
 
-    idx = int(round(minutes / 10.0))
+    rounded = int(round(minutes))
+    if abs(minutes - rounded) > 1e-6 or rounded % 10 != 0:
+        raise ValueError(f"时间不是 10 分钟边界: {value!r}")
+    idx = rounded // 10
     if idx < 1 or idx > N_PERIODS:
         raise ValueError(f"时间无法映射为 1..{N_PERIODS}: {value!r}")
     return idx
@@ -257,9 +264,10 @@ def load_wide_series_dataframe(df: pd.DataFrame, scale: float, source: str) -> p
     if len(pairs) != N_PERIODS or set(idx_series) != set(range(1, N_PERIODS + 1)):
         raise ValueError(f"{source} 时段列数量错误: {len(pairs)}，应为 {N_PERIODS}")
 
-    out = pd.DataFrame({"date": _parse_dates(df[date_col])})
+    data = {"date": _parse_dates(df[date_col])}
     for k, src in sorted(pairs, key=lambda p: p[0]):
-        out[f"T{k:03d}"] = pd.to_numeric(df[src], errors="coerce") * scale
+        data[f"T{k:03d}"] = pd.to_numeric(df[src], errors="coerce") * scale
+    out = pd.DataFrame(data)
     return out.sort_values("date").reset_index(drop=True)
 
 
@@ -519,10 +527,10 @@ def build_template_map() -> pd.DataFrame:
 def print_stats(name: str, df: pd.DataFrame, expected_rows: int, value_cols, time_cols=None):
     print(f"\n[{name}]")
     print(f"  行数 = {len(df)} (预期 {expected_rows}) -> {'OK' if len(df) == expected_rows else 'FAIL'}")
-    vals = df[value_cols].astype("float64")
-    stacked = vals.stack(dropna=True)
-    if len(stacked):
-        print(f"  min = {stacked.min():.6f}   max = {stacked.max():.6f}")
+    vals = df[value_cols].astype("float64").to_numpy(dtype="float64").ravel()
+    finite = vals[np.isfinite(vals)]
+    if finite.size:
+        print(f"  min = {finite.min():.6f}   max = {finite.max():.6f}")
     else:
         print("  min/max 无法计算（无有效数值）")
     if time_cols is not None:
@@ -711,3 +719,7 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+
+
