@@ -86,7 +86,7 @@ s_0=6000,\qquad \bar q=5000\times\frac{1}{6}=833.333.
   0&\le c_t\le \bar q,\qquad
   0\le r_t\le \bar q,
   &&t=1,2,\ldots,T, \label{eq:q1-power-bound}\\
-  x_t&\ge0,qquad 0\le w_t\le G_t,
+  x_t&\ge0,\qquad 0\le w_t\le G_t,
   &&t=1,2,\ldots,T. \label{eq:q1-var-bound}
 \end{align}
 式~\eqref{eq:q1-soc-bound} 防止储能过度充电或过度放电；式~\eqref{eq:q1-power-bound} 将 $5000\ \mathrm{kW}$ 的功率上限换算为每 10 分钟 $833.333\ \mathrm{kWh}$ 的电量上限；式~\eqref{eq:q1-var-bound} 表明购电量非负且弃光量不能超过当期光伏发电量。
@@ -219,7 +219,7 @@ $v_t$ 的单位为元/kWh，表示在当前最优基附近，若在时段 $t$ �
   \label{fig:q1-dispatch-soc}
 \end{figure}
 
-储能边际价值的最小值、平均值、中位数和最大值分别为 $0.4711$、$0.6379$、$0.5317$ 和 $1.1305\ \mathrm{元/kWh}$。由图~\ref{fig:q1-marginal-value} 可见，边际价值随未来高价时段和 SOC 边界的变化呈分段变化，这与线性规划对偶变量在同一最优基内保持稳定、活跃约束改变时发生跳变的性质一致。
+储能边际价值的最小值、平均值、中位数和最大值分别为 $0.4711$、$0.6379$、$0.5317$ 和 $1.1305\ \text{元/kWh}$。由图~\ref{fig:q1-marginal-value} 可见，边际价值随未来高价时段和 SOC 边界的变化呈分段变化，这与线性规划对偶变量在同一最优基内保持稳定、活跃约束改变时发生跳变的性质一致。
 
 \begin{figure}[htbp]
   \centering
