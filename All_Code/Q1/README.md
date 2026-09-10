@@ -19,6 +19,7 @@
 cd All_Code/Q1/Model_Establishment+Solution
 python q1_model.py     # 求解 LP + 校验 + 导出结果
 python q1_switching_check.py  # 可选：同等费用下的最少模式切换 MILP
+python q1_efficiency_sensitivity.py  # 可选：复核“90%效率”的两种解释
 cd ../Pictures
 python q1_figures.py   # 生成 4 张论文插图（依赖上一步的 CSV）
 ```
@@ -34,6 +35,7 @@ python q1_figures.py   # 生成 4 张论文插图（依赖上一步的 CSV）
 | `q1_summary.json` | `Tables/` | 汇总指标与校验结果 |
 | `q1_time_mapping.csv` | `Tables/` | 源时间、内部区间与官方模板标签的映射核对 |
 | `q1_switching_summary.json` | `Tables/` | 可选 MILP 切换校验结果 |
+| `q1_efficiency_sensitivity.json` | `Tables/` | 单向效率 90% 与往返效率 90% 的口径对照 |
 | `q1_fig1~4.pdf` | `Pictures/` | 时序 / 调度组合 / SOC 轨迹 / 电价与储能边际价值 |
 
 ## 主要结果（2026-09-10 运行）
