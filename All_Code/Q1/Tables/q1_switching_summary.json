@@ -1,0 +1,14 @@
+{
+  "definition": "sum absolute changes of charge-enabled and discharge-enabled binary channels",
+  "C1_stage1_optimal_cost_yuan": 35126.94858928963,
+  "milp_purchase_cost_yuan": 35126.94868928961,
+  "cost_gap_yuan": 9.999998292187229e-05,
+  "cost_tolerance_yuan": 0.0001,
+  "channel_state_changes": 12,
+  "charge_enabled_intervals": 78,
+  "discharge_enabled_intervals": 40,
+  "actual_charge_intervals": 45,
+  "actual_discharge_intervals": 37,
+  "simultaneous_charge_discharge_intervals": 0,
+  "solver_message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)"
+}

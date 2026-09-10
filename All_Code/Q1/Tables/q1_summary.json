@@ -1,0 +1,51 @@
+{
+  "C1_true_purchase_cost_yuan": 35126.948689289624,
+  "C1_stage1_optimal_cost_yuan": 35126.94858928963,
+  "C1_secondary_solution_cost_yuan": 35126.948689289624,
+  "secondary_cost_tolerance_yuan": 0.0001,
+  "total_purchase_kwh": 59482.69876179719,
+  "total_curtailment_kwh": 0.0,
+  "storage_throughput_kwh": 37540.603444839915,
+  "charge_kwh": 20740.664886651888,
+  "discharge_kwh": 16799.938558188027,
+  "no_storage_baseline_cost_yuan": 48052.04659084666,
+  "saving_vs_no_storage_yuan": 12925.097901557034,
+  "saving_rate_vs_no_storage": 0.2689812155476248,
+  "no_storage_baseline_definition": "sum_t price_t * max(load_t - pv_t, 0)",
+  "time_mapping_mismatch_count_vs_official_template": 144,
+  "time_mapping_note": "内部按附件时间标签为时段结束时刻；官方模板标签整体后移10分钟，结果保持源数据顺序填充，详见q1_time_mapping.csv。",
+  "validation": {
+    "max_abs_balance_residual_kwh": 2.2737367544323206e-13,
+    "max_abs_soc_recursion_residual_kwh": 8.313350008393172e-13,
+    "soc_min": 1200.0,
+    "soc_max": 10800.0,
+    "soc_within_bounds": true,
+    "s0_equals_sT": true,
+    "max_charge_kwh": 833.3333333333333,
+    "max_discharge_kwh": 715.6530333333333,
+    "charge_discharge_within_power_limit": true,
+    "curtailment_nonnegative_and_le_pv": true,
+    "simultaneous_charge_discharge_max_product": 0.0,
+    "purchase_cost_optimality_gap_yuan": 9.999999747378752e-05,
+    "purchase_cost_within_secondary_tolerance": true
+  },
+  "perturbation_check": {
+    "t_probe_zero_based": 100,
+    "delta_kwh": 0.001,
+    "balance_dual_yuan_per_kwh": 0.9163,
+    "balance_finite_difference_yuan_per_kwh": 0.9163000067928806,
+    "balance_abs_error": 6.792880591355299e-09,
+    "soc_dual_yuan_per_kwh": -0.82467,
+    "soc_finite_difference_yuan_per_kwh": -0.8246699944720604,
+    "soc_abs_error": 5.527939661575942e-09,
+    "storage_marginal_value_yuan_per_kwh": 0.82467
+  },
+  "mu_soc_stats": {
+    "min": -1.13049,
+    "max": -0.4711111111111111
+  },
+  "mu_bal_stats": {
+    "min": 0.3713,
+    "max": 1.2561
+  }
+}
