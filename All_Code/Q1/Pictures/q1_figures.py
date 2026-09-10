@@ -62,7 +62,9 @@ ax.plot(hours, d.w_curtail_kwh / DT / 1000, color="#999999", lw=0.8, ls=":", lab
 ax.axhline(0, color="k", lw=0.5)
 ax.set_xlabel("时刻 / h"); ax.set_ylabel("功率 / MW")
 ax.set_xlim(0, 24); ax.set_xticks(range(0, 25, 4))
-ax.legend(ncol=5, frameon=False, fontsize=8, loc="upper left")
+ax.legend(ncol=5, frameon=False, fontsize=8, loc="lower center",
+          bbox_to_anchor=(0.5, 1.01), borderaxespad=0)
+fig.subplots_adjust(top=0.84)
 fig.savefig(FIG / "q1_fig2_dispatch.pdf"); plt.close(fig)
 
 # 图3：SOC 轨迹与上下限
@@ -73,7 +75,9 @@ ax.axhline(10.8, color=C_PRICE, lw=0.8, ls="--", label="上限 10800 kWh")
 ax.axhline(1.2, color=C_PRICE, lw=0.8, ls="-.", label="下限 1200 kWh")
 ax.set_xlabel("时刻 / h"); ax.set_ylabel("储电量 / MWh")
 ax.set_xlim(0, 24); ax.set_xticks(range(0, 25, 4))
-ax.legend(ncol=3, frameon=False, fontsize=8, loc="upper left")
+ax.legend(ncol=3, frameon=False, fontsize=8, loc="lower center",
+          bbox_to_anchor=(0.5, 1.01), borderaxespad=0)
+fig.subplots_adjust(top=0.84)
 fig.savefig(FIG / "q1_fig3_soc.pdf"); plt.close(fig)
 
 # 图4：电价与储能边际价值（-mu_soc）双轴
