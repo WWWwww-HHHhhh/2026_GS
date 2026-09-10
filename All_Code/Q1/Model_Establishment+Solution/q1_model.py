@@ -5,7 +5,8 @@
 输入数据：Data/附件/附件1.xlsx（144 个 10 min 时段的电价、小区负载、光伏预测功率）
          Data/附件/附件5/result1.xlsx（官方结果模板）
 运行方法：python q1_model.py（依赖 numpy/pandas/scipy/openpyxl；Python 3.13 验证通过）
-输出位置：All_Code/Q1/Tables/（result1.xlsx、q1_timeseries.csv、q1_summary.json）
+输出位置：All_Code/Q1/Tables/（result1.xlsx、q1_timeseries.csv、
+q1_storage_marginal_value_for_q2.csv、q1_summary.json）
 
 模型（确定性单日，功率 × 1/6 转为时段电量 kWh）：
     第一阶段：min C1 = sum_t pi_t * x_t
@@ -303,8 +304,35 @@ def main():
         "x_plan_kwh": sol["x"], "c_charge_kwh": sol["c"],
         "r_discharge_kwh": sol["r"], "w_curtail_kwh": sol["w"],
         "soc_kwh": sol["s"], "mu_bal": sol["mu_bal"], "mu_soc": sol["mu_soc"],
+        "storage_marginal_value_yuan_per_kwh": -sol["mu_soc"],
     })
     detail.to_csv(RESULTS / "q1_timeseries.csv", index=False, encoding="utf-8-sig")
+
+    # 面向 Q2 的干净接口表。这里仅给出 Q1 确定性基准；Q2 应在各场景下
+    # 重新求解并形成 E[v_t]、P10/P50/P90，不能把本表当作随机模型的固定参数。
+    mapping = pd.read_csv(mapping_path, encoding="utf-8-sig")
+    tol = 1e-8
+    operating_state = np.where(
+        sol["c"] > tol, "charge",
+        np.where(sol["r"] > tol, "discharge", "idle"),
+    )
+    marginal_table = pd.DataFrame({
+        "interval_index": np.arange(1, T + 1),
+        "source_time_label": df["time_label"].astype(str),
+        "official_template_label": mapping["official_template_label"].astype(str),
+        "price_yuan_per_kwh": pi,
+        "net_load_kwh": L - G,
+        "planned_purchase_kwh": sol["x"],
+        "charge_kwh": sol["c"],
+        "discharge_kwh": sol["r"],
+        "soc_kwh": sol["s"],
+        "soc_dual_mu_yuan_per_kwh": sol["mu_soc"],
+        "storage_marginal_value_yuan_per_kwh": -sol["mu_soc"],
+        "balance_dual_yuan_per_kwh": sol["mu_bal"],
+        "operating_state": operating_state,
+    })
+    marginal_path = RESULTS / "q1_storage_marginal_value_for_q2.csv"
+    marginal_table.to_csv(marginal_path, index=False, encoding="utf-8-sig")
 
     summary = {
         "C1_true_purchase_cost_yuan": sol["C1"],
@@ -328,6 +356,14 @@ def main():
         "perturbation_check": pert,
         "mu_soc_stats": {"min": float(sol["mu_soc"].min()),
                           "max": float(sol["mu_soc"].max())},
+        "storage_marginal_value_stats": {
+            "definition": "v_t = -mu_soc_t; Q1 deterministic local shadow value",
+            "unit": "yuan/kWh",
+            "min": float((-sol["mu_soc"]).min()),
+            "mean": float((-sol["mu_soc"]).mean()),
+            "median": float(np.median(-sol["mu_soc"])),
+            "max": float((-sol["mu_soc"]).max()),
+        },
         "mu_bal_stats": {"min": float(sol["mu_bal"].min()),
                           "max": float(sol["mu_bal"].max())},
     }
@@ -344,6 +380,7 @@ def main():
     print(f"同时充放最大乘积 = {checks['simultaneous_charge_discharge_max_product']:.2e}")
     print(f"扰动核验: t={pert['t_probe_zero_based']}，平衡对偶误差 "
           f"{pert['balance_abs_error']:.2e}，SOC 对偶误差 {pert['soc_abs_error']:.2e}")
+    print(f"Q2 边际价值接口表: {marginal_path}")
     print(f"时间映射: 内部区间与官方模板标签不一致 {mapping_mismatches}/{T} 行，详见 {mapping_path}")
     print(f"已输出: {out}")
 

@@ -44,6 +44,14 @@
     "min": -1.13049,
     "max": -0.4711111111111111
   },
+  "storage_marginal_value_stats": {
+    "definition": "v_t = -mu_soc_t; Q1 deterministic local shadow value",
+    "unit": "yuan/kWh",
+    "min": 0.4711111111111111,
+    "mean": 0.6379470293209876,
+    "median": 0.5316666666666666,
+    "max": 1.13049
+  },
   "mu_bal_stats": {
     "min": 0.3713,
     "max": 1.2561
