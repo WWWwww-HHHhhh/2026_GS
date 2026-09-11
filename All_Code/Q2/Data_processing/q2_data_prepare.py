@@ -34,7 +34,7 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 GS = r"E:\2.University_materials\4.University_life\6.Study_materials\others\freshman_year(secong semester)\2026_GS"
 DATA_TRANS = os.path.join(GS, r"All_Code\Data_preprocessing\Data_transformation")
-Q1MV = r"D:\Program Files(微信)\缓存文件夹\xwechat_files\wxid_wu6lwfcaguhi22_a75e\msg\file\2026-09\q1_storage_marginal_value_for_q2.csv"
+Q1MV = r"E:\2.University_materials\4.University_life\6.Study_materials\others\freshman_year(secong semester)\2026_GS\All_Code\Q1\Results\Tables\q1_storage_marginal_value_for_q2.csv"
 Q2CODE = os.path.join(GS, r"All_Code\Q2")
 DATA_PROC = os.path.join(Q2CODE, "Data_processing")
 TABLES = os.path.join(Q2CODE, "Results", "Tables")

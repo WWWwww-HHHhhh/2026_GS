@@ -1,5 +1,5 @@
 问题二 数据复用与打包验证报告（不再重复清洗/换算）
-生成时间: 2026-09-11 12:18:19
+生成时间: 2026-09-11 13:40:49
 数据来源: E:\2.University_materials\4.University_life\6.Study_materials\others\freshman_year(secong semester)\2026_GS\All_Code\Data_preprocessing\Data_transformation
 清洗与单位换算已由 Data_preprocessing 完成；本报告仅验证复用读取结果。
 样本: 天数=365, 时段=144
