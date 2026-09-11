@@ -2,7 +2,8 @@
 """
 问题1：含弃光和储能边际价值的连续 LP（HiGHS 求解）
 
-输入数据：Data/附件/附件1.xlsx（144 个 10 min 时段的电价、小区负载、光伏预测功率）
+输入数据：All_Code/Data_preprocessing/Data_clean/附件1_clean.csv
+         （144 个 10 min 时段的电价、小区负载、光伏预测功率，清洗后 UTF-8 BOM 文件）
          Data/附件/附件5/result1.xlsx（官方结果模板）
 运行方法：python q1_model.py（依赖 numpy/pandas/scipy/openpyxl；Python 3.13 验证通过）
 输出位置：All_Code/Q1/Tables/（result1.xlsx、q1_timeseries.csv、
@@ -32,7 +33,8 @@ from scipy.optimize import linprog
 # ---------------------------------------------------------------- 路径与常量
 Q1_DIR = Path(__file__).resolve().parents[1]           # All_Code/Q1
 REPO_ROOT = Path(__file__).resolve().parents[3]        # 仓库根目录
-DATA_XLSX = REPO_ROOT / "Data" / "附件" / "附件1.xlsx"
+DATA_CSV = (REPO_ROOT / "All_Code" / "Data_preprocessing" / "Data_clean"
+            / "附件1_clean.csv")
 TEMPLATE_XLSX = REPO_ROOT / "Data" / "附件" / "附件5" / "result1.xlsx"
 RESULTS = Q1_DIR / "Tables"
 RESULTS.mkdir(exist_ok=True)
@@ -48,9 +50,10 @@ COST_TOL = 1e-4              # 二级 LP 允许的购电费用绝对容差，元
 
 def load_data():
     """读取附件1：144 个时段的电价(元/kWh)、负载(kW)、光伏预测(kW)，功率乘 1/6 转电量。"""
-    if not DATA_XLSX.is_file():
-        raise FileNotFoundError(f"找不到输入文件: {DATA_XLSX}")
-    df = pd.read_excel(DATA_XLSX, header=0)
+    if not DATA_CSV.is_file():
+        raise FileNotFoundError(f"找不到输入文件: {DATA_CSV}")
+    # 清洗文件带 UTF-8 BOM，用 utf-8-sig 读，否则首列名会多出 \ufeff
+    df = pd.read_csv(DATA_CSV, header=0, encoding="utf-8-sig")
     if df.shape[1] != 4:
         raise ValueError(f"附件1应有4列，实际 {df.shape[1]} 列")
     df.columns = ["time_label", "price", "load_kw", "pv_kw"]
