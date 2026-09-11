@@ -36,11 +36,15 @@ def load_inputs():
 
 
 def make_interval_mapping(ds, tm):
-    """内部时段序号 <-> 附件时间标签 <-> 模板列号 三列映射。"""
+    """内部时段序号 <-> 附件时间标签 <-> 模板列号 三列映射（真实时间口径）。
+    规则：模板列 2..144 <- 本日 t=2..144；模板列 145（标签 0:00-0:10+1）<- 次日 t=1。"""
     rows = []
+    tm_labels = {int(r.time_idx): str(r.template_col_label) for r in tm.itertuples()}
     for t in range(1, T + 1):
         row = tm[tm["time_idx"] == t].iloc[0]
-        rows.append([t, row["data_label"], row["template_col_label"], t + 1])
+        col = 145 if t == 1 else t
+        label = tm_labels[144] if t == 1 else tm_labels[t - 1]
+        rows.append([t, row["data_label"], label, col])
     df = pd.DataFrame(rows, columns=["内部时段序号", "附件时间标签(结束时刻)", "模板列标签", "模板列号"])
     path = os.path.join(TABLES, "interval_template_mapping.xlsx")
     with pd.ExcelWriter(path, engine="openpyxl") as writer:
@@ -76,12 +80,19 @@ def build_workbook(res, ds, tm):
     period_start = {int(r.time_idx): str(r.period_start) for r in tm.itertuples()}
     period_end = {int(r.time_idx): str(r.period_end) for r in tm.itertuples()}
 
-    for l in report_logs:
+    for i, l in enumerate(report_logs):
         d = parse_date(l["date"])
         x = l["plan_x"]                       # (144,)
         row = [d] + [None] * 146
-        for t in range(T):
-            row[1 + t] = float(x[t])          # 模板列 2..145 = t+1
+        for t in range(1, T):                 # 本日 t=2..144 -> 列 2..144
+            row[t] = float(x[t])
+        nxt = report_logs[i + 1] if i + 1 < len(report_logs) else None
+        if nxt is not None:
+            if (parse_date(nxt["date"]) - d).days != 1:
+                raise ValueError(f"report_logs 日期不连续: {l['date']} -> {nxt['date']}")
+            row[144] = float(nxt["plan_x"][0])   # 末列（列145）<- 次日 t=1
+        else:
+            row[144] = None                     # 最后一行（2025-12-31）末列留空
         row[145] = float(np.sum(x))           # 全天购电量（列146）
         row[146] = float(l["cost_plan"])      # 全天购电费（列147）
         ws1.append(row)
@@ -138,7 +149,7 @@ def build_workbook(res, ds, tm):
 
 
 def verify_export(res):
-    """聚合后与逐时段求和一致性复核。"""
+    """聚合后与逐时段求和一致性复核；并检查 2025-12-31 行末列按要求留空。"""
     report_logs = res["report_logs"]
     total_plan = float(np.sum([np.sum(l["plan_x"]) for l in report_logs]))
     total_c = float(np.sum([np.sum(l["plan_c"]) for l in report_logs]))
@@ -146,12 +157,14 @@ def verify_export(res):
     wb = openpyxl.load_workbook(OUT_XLSX)
     ws1 = wb["计划购电量"]
     col146_sum = float(np.sum([ws1.cell(r, 146).value or 0 for r in range(2, ws1.max_row + 1)]))
+    last_row_c145 = ws1.cell(ws1.max_row, 145).value
     ws2 = wb["充放电量"]
     chg_sum = float(np.sum([ws2.cell(r, 3).value or 0 for r in range(2, ws2.max_row + 1)]))
     dis_sum = float(np.sum([ws2.cell(r, 4).value or 0 for r in range(2, ws2.max_row + 1)]))
     ok = (abs(col146_sum - total_plan) < 1e-6 and abs(chg_sum - total_c) < 1e-6 and abs(dis_sum - total_r) < 1e-6)
     print(f"    复核：全天购电量列合计={col146_sum:.2f} vs 逐时段={total_plan:.2f}；"
           f"充电聚合={chg_sum:.2f} vs {total_c:.2f}；放电聚合={dis_sum:.2f} vs {total_r:.2f}；一致={ok}")
+    print(f"    复核：末行（{ws1.cell(ws1.max_row, 1).value.strftime('%Y-%m-%d')}）末列值={last_row_c145}（应为空 None）")
     return ok
 
 

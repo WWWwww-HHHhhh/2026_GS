@@ -12,6 +12,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import openpyxl
 
 from forecast import build_feature_matrix
 from scenarios import ScenarioEngine
@@ -167,13 +168,46 @@ def check_emergency_5x(report_logs):
     return max_diff <= 1e-6, f"5倍电价复算最大差异 = {max_diff:.3e}"
 
 
-def check_template_mapping(ds, report_logs):
-    """第12项(总纲7.2)：内部时段与模板 144 列一一对应，总量等于逐时段求和。"""
-    tm = ds["time_mapping"]
-    ok = (len(tm["internal_idx"]) == T) and (np.array_equal(tm["template_col"], np.arange(2, T + 2)))
+def check_template_mapping(report_logs):
+    """第12项(总纲7.2)：真实时间口径模板映射——列2..144<-本日t=2..144，
+    列145<-次日t=1，2025-12-31末列留空；全天购电量/购电费与日志一致；总量等于逐时段求和。"""
+    wb = openpyxl.load_workbook(os.path.join(TABLES, "result2.xlsx"))
+    ws = wb["计划购电量"]
+    rows = list(ws.iter_rows(min_row=2, values_only=True))
+    n = len(report_logs)
+    if len(rows) != n:
+        return False, f"result2 行数={len(rows)}，应为 {n}"
+    bad = 0
+    next_bad = 0
+    last_blank_ok = None
+    for i, row in enumerate(rows):
+        l = report_logs[i]
+        dcell = row[0]
+        key = dcell.strftime("%Y-%m-%d") if hasattr(dcell, "strftime") else str(dcell)[:10]
+        if key != l["date"]:
+            return False, f"第{i + 1}行日期 {key} 与日志 {l['date']} 不一致"
+        x = l["plan_x"]
+        for t in range(2, T + 1):                       # 本日 t=2..144 -> 列 t（下标 t-1）
+            v = row[t - 1]
+            if v is None or abs(v - x[t - 1]) > 1e-6:
+                bad += 1
+        v145 = row[144]                                  # 末列 <- 次日 t=1
+        if i + 1 < n:
+            nxt = report_logs[i + 1]
+            if v145 is None or abs(v145 - nxt["plan_x"][0]) > 1e-6:
+                next_bad += 1
+        else:
+            last_blank_ok = (v145 is None)
+        if abs((row[145] or 0) - np.sum(x)) > 1e-6:
+            bad += 1
+        if abs((row[146] or 0) - l["cost_plan"]) > 1e-6:
+            bad += 1
     total_plan = float(np.sum([np.sum(l["plan_x"]) for l in report_logs]))
-    # 与 daily 日志的计划购电量总和（cost_plan 除以均价不可靠，直接用 x 求和复核）
-    return ok, f"模板列映射 1..144 -> 列2..145 成立={ok}，逐时段计划购电总量={total_plan:.2f} kWh"
+    col146_sum = float(np.sum([row[145] or 0 for row in rows]))
+    total_ok = abs(col146_sum - total_plan) < 1e-6
+    ok = (bad == 0) and (next_bad == 0) and bool(last_blank_ok) and total_ok
+    return ok, (f"列2..144与本日t2..144差异格数={bad}；末列与次日t1差异天数={next_bad}；"
+                f"12-31末列留空={last_blank_ok}；全天合计一致={total_ok}（总量 {total_plan:.2f} kWh）")
 
 
 def check_report_cost(report_logs):
@@ -208,7 +242,7 @@ def run_validation():
         ("8. 第一阶段变量共享", check_first_stage_shared),
         ("9. 弃光=G-g且>=0", lambda: check_curtailment(report_logs)),
         ("10. 紧急购电5倍复算", lambda: check_emergency_5x(report_logs)),
-        ("12. 模板列映射与总量", lambda: check_template_mapping(ds, report_logs)),
+        ("12. 模板列映射与总量", lambda: check_template_mapping(report_logs)),
         ("13. 报告费用不含罚项", lambda: check_report_cost(report_logs)),
         ("14. 统计量带样本量", lambda: check_sample_size(report_logs)),
     ]
