@@ -1,0 +1,13 @@
+Q2_yy严格校验报告（2026-09-12 01:54:54）
+总体结果: 全部PASS
+--------------------------------------------------------------------------------
+[PASS] 官方附件逐点匹配: price/load/pv最大绝对差={'price': 0.0, 'load': 0.0, 'pv': 0.0}; 日期逐日一致=True; 仅执行kW/6=kWh
+[PASS] 官方附件文件指纹: 附件1 sha256=66b87134f5ecccd68184d3539bb1293ef039f9e0fdd955a589b9bfa7f227c377; 附件2 sha256=2e95fd446bfafa0d8c59577b5c2e2ea8b3f1def20dde54a3062556f4da9b4c72
+[PASS] 因果预测缓存完整: Lhat=(144, 365), Ghat=(144, 365), 声明=prediction day i uses target data only through i-1
+[PASS] 场景严格历史且联合抽样: 逐日按前30个已结束日期重构最大差=4.547e-13; M=10/20/30嵌套最大差=4.547e-13, 通过=True
+[PASS] 报告期未参与选参: selection=2025-01-15..2025-01-31; report=2025-02-01..2025-12-31; n=334
+[PASS] 参数选择可追溯: 唯一选中行=1; M=30, beta=0.2, kappa2=0.13291666666666666
+[PASS] 逐10分钟物理与执行约束: 最大残差={'balance': 2.8421709430404007e-13, 'soc_rec': 9.094947017729282e-13, 'plan_soc_rec': 1.693933882052079e-11, 'data': 2.2737367544323206e-13, 'cost': 0.0, 'emergency5x': 0.0, 'cross_day': 0.0}; 违规计数={'bounds': 0, 'plan_bound': 0, 'plan_both': 0, 'actual_over_plan': 0, 'negative': 0, 'method': 0}
+[PASS] 费用目标与原Q2对比: total=14633754.65, emergency=682383.70; baseline total=15637529.82, emergency=839786.46
+[PASS] result2提交表独立复算: rows(plan/charge)=334/2004; 最大聚合差=7.451e-09; 12-31末列为空=True
+[PASS] 题目四个指定日期直接作答: dates=['2025-03-20', '2025-06-21', '2025-09-23', '2025-12-21']; 储能汇总行=24; 最大复算差=2.910e-11

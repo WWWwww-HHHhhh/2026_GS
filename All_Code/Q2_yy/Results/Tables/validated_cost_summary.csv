@@ -1,0 +1,2 @@
+﻿report_days,plan_cost_yuan,emergency_cost_yuan,total_cost_yuan,emergency_kwh,report_initial_soc_kwh,report_final_soc_kwh,terminal_value_adjustment_yuan,terminal_adjusted_total_cost_yuan,baseline_total_cost_yuan,baseline_emergency_cost_yuan,total_saving_yuan,emergency_saving_yuan
+334,13951370.954266643,682383.6983927872,14633754.65265943,161057.53823802722,7552.443450228718,1426.2684504353033,3257.083041556832,14637011.735700985,15637529.823381823,839786.4576860523,1003775.1707223933,157402.75929326506
