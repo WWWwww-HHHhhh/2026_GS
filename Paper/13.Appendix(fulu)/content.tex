@@ -1,12 +1,93 @@
 % !TeX root = ../main.tex
-\section{支撑材料文件列表}
-【列出实际提交的代码 ZIP 包与其他支撑材料；完整代码随压缩包独立提交，不在论文中展开。下表的文件名仅为示例，请替换为实际名称。】
-\begin{longtable}{p{0.27\linewidth}p{0.26\linewidth}p{0.36\linewidth}}
-  \toprule 文件名 & 对应内容 & 用途与运行说明 \\ \midrule
-  \endfirsthead
-  \toprule 文件名 & 对应内容 & 用途与运行说明 \\ \midrule
-  \endhead
-  \bottomrule\endfoot
-  \texttt{code.zip} & 【各问完整代码】 & 【运行说明、依赖及数据说明见包内文档】 \\
-  \texttt{results.xlsx} & 【结果表】 & 【各工作表含义】 \\
-\end{longtable}
+\section{储能效率口径对照分析}
+\label{app:q1_efficiency}
+
+\subsection{对照方案}
+
+题目给出储能充放电效率为 \(90\%\)，但未分别说明
+充电效率、放电效率与往返效率。
+为考察不同解释对问题一结果的影响，设置以下两种方案。
+
+主模型将充电效率与放电效率均取为 \(0.9\)，
+对应往返效率为
+\begin{equation}
+    \eta_{\mathrm{round}}
+    =\eta_c\eta_r
+    =0.9\times0.9
+    =0.81.
+    \label{eq:app_efficiency_main}
+\end{equation}
+对照方案将题目中的 \(90\%\) 解释为整体往返效率，
+并假设充放电效率相同，因此取
+\begin{equation}
+    \eta_c=\eta_r=\sqrt{0.9}\approx0.9487,
+    \qquad
+    \eta_{\mathrm{round}}=0.9.
+    \label{eq:app_efficiency_alternative}
+\end{equation}
+
+两种方案使用相同的电价、负荷和光伏预测数据，
+储能容量、充放电功率及日初日末储电量条件均保持不变，
+仅调整状态转移方程中的效率参数。
+分别求解完整的两阶段优化模型，
+比较最终购电费用及充放电总量。
+
+\subsection{计算结果与解释}
+
+主模型的全天购电费用为 \(35126.95\) 元，
+对照方案为 \(33801.50\) 元，如图~\ref{fig:app_efficiency} 所示。
+往返效率由 \(81\%\) 提高至 \(90\%\) 后，
+购电费用减少 \(1325.45\) 元，相对主模型下降约 \(3.77\%\)。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]
+    {../All_Code/Q1/Results/Pictures/q1_efficiency_comparison.pdf}
+    \caption{两种储能效率口径下的全天购电费用}
+    \label{fig:app_efficiency}
+\end{figure}
+
+相应地，全天购电量由 \(59482.70\,\mathrm{kWh}\)
+降至 \(57526.24\,\mathrm{kWh}\)，
+充电量由 \(20740.66\,\mathrm{kWh}\)
+降至 \(19842.71\,\mathrm{kWh}\)，
+放电量由 \(16799.94\,\mathrm{kWh}\)
+增至 \(17858.44\,\mathrm{kWh}\)。
+这说明效率提高后，储能能够以更少的充电量提供更多可用电量，
+从而减少补偿损耗所需的外网购电。
+
+由于两种方案均要求日初和日末储电量相同，
+全天储能损耗可由充放电总量之差计算
+\begin{equation}
+    E_{\mathrm{loss}}
+    =
+    E_{\mathrm{ch}}-E_{\mathrm{dis}}
+    =
+    \left(1-\eta_{\mathrm{round}}\right)E_{\mathrm{ch}}.
+    \label{eq:app_storage_loss}
+\end{equation}
+主模型和对照方案的储能损耗分别约为
+\(3940.73\,\mathrm{kWh}\) 和 \(1984.27\,\mathrm{kWh}\)。
+效率提高减少了电量转移过程中的损耗，
+为购电量和购电费用的下降提供了解释。
+
+两种方案的储电量均满足
+\(1200\,\mathrm{kWh}\) 至 \(10800\,\mathrm{kWh}\) 的运行范围，
+日初和日末储电量均为 \(6000\,\mathrm{kWh}\)。
+电量平衡和储能状态转移的最大绝对残差均小于
+\(10^{-12}\,\mathrm{kWh}\)，
+说明两组结果均满足相应模型约束。
+
+\subsection{对主结论的影响}
+
+无储能基准购电费用为 \(48052.05\) 元。
+相较于该基准，主模型与对照方案的费用降幅分别为
+\(26.90\%\) 和 \(29.66\%\)。
+因此，效率口径会影响购电费用和充放电安排的具体数值，
+但两种解释下均能通过储能调度降低购电费用，
+未改变问题一关于储能经济性的主要结论。
+
+本对照仅考察上述两种效率解释，
+不据此推断其他效率范围内的敏感程度。
+正文及正式结果文件仍采用充电效率和放电效率均为 \(0.9\)
+的主模型结果。

@@ -16,12 +16,13 @@
 ## 运行方法与输出
 
 ```bash
-cd All_Code/Q1/Model_Establishment+Solution
+cd All_Code/Q1/Model_Establishment
 python q1_model.py     # 求解 LP + 校验 + 导出结果
 python q1_switching_check.py  # 可选：同等费用下的最少模式切换 MILP
 python q1_efficiency_sensitivity.py  # 可选：复核“90%效率”的两种解释
-cd ../Pictures
+cd ../Results/Pictures
 python q1_figures.py   # 生成 4 张论文插图（依赖上一步的 CSV）
+python q1_figures.py --figure 1   # 可选：只重画第 1 张
 ```
 
 输出：
@@ -36,7 +37,7 @@ python q1_figures.py   # 生成 4 张论文插图（依赖上一步的 CSV）
 | `q1_time_mapping.csv` | `Tables/` | 源时间、内部区间与官方模板标签的映射核对 |
 | `q1_switching_summary.json` | `Tables/` | 可选 MILP 切换校验结果 |
 | `q1_efficiency_sensitivity.json` | `Tables/` | 单向效率 90% 与往返效率 90% 的口径对照 |
-| `q1_fig1~4.pdf` | `Pictures/` | 时序 / 调度组合 / SOC 轨迹 / 电价与储能边际价值 |
+| `q1_fig1~4.pdf` / `.png` | `Pictures/` | 图1 电价—小区负载—光伏—净负荷 双轴折线（左轴功率、右轴电价，光伏用渐变面积，高电价时段铺底纹）；图2 供电来源堆叠；图3 SOC 轨迹与可行域；图4 储能边际价值对电价的散点关系图（含 `v=电价`、`v=0.9×电价` 参考线，SOC 触界点单独标注）。PDF 供投稿、PNG 供预览，四图共用统一配色与版式 |
 
 ## 主要结果（2026-09-10 运行）
 

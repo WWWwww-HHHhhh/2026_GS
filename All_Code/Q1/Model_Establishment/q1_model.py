@@ -239,7 +239,7 @@ def _interval_label(t):
 
 
 def export_result1(sol, df):
-    """按模板逐行填充 result1.xlsx，时间列统一为内部结束时刻口径。
+    """按模板逐行填充 result1.xlsx，保留原始模板的时间标签。
     映射：内部时段序号 t（1..144，与附件1第 t 行同序）-> 模板“计划购电量”第 t 行。
     专项核对：模板 144 行全部填满；填充总量与逐时段求和一致。"""
     out = RESULTS / "result1.xlsx"
@@ -258,7 +258,6 @@ def export_result1(sol, df):
     mapping_rows = []
     for t in range(T):
         original_template_label = str(ws.cell(row=t + 2, column=1).value)
-        ws.cell(row=t + 2, column=1, value=_interval_label(t))
         ws.cell(row=t + 2, column=2, value=float(sol["x"][t]))
         mapping_rows.append({
             "t_one_based": t + 1,
@@ -355,8 +354,8 @@ def main():
         "no_storage_baseline_definition": "sum_t price_t * max(load_t - pv_t, 0)",
         "time_mapping_mismatch_count_vs_official_template": mapping_mismatches,
         "time_mapping_note": (
-            "内部按附件时间标签为时段结束时刻。导出文件时间列已统一为当天0:00至24:00，"
-            "数值保持源数据顺序，原始模板标签保留在q1_time_mapping.csv中供核对。"
+            "内部按附件时间标签为时段结束时刻。导出文件保留原始模板时间标签，"
+            "数值保持源数据顺序，内部区间与模板标签的差异见q1_time_mapping.csv。"
         ),
         "validation": checks,
         "perturbation_check": pert,
