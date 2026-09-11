@@ -6,7 +6,7 @@
          （144 个 10 min 时段的电价、小区负载、光伏预测功率，清洗后 UTF-8 BOM 文件）
          Data/附件/附件5/result1.xlsx（官方结果模板）
 运行方法：python q1_model.py（依赖 numpy/pandas/scipy/openpyxl；Python 3.13 验证通过）
-输出位置：All_Code/Q1/Tables/（result1.xlsx、q1_timeseries.csv、
+输出位置：All_Code/Q1/Results/Tables/（result1.xlsx、q1_timeseries.csv、
 q1_storage_marginal_value_for_q2.csv、q1_summary.json）
 
 模型（确定性单日，功率 × 1/6 转为时段电量 kWh）：
@@ -36,8 +36,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]        # 仓库根目录
 DATA_CSV = (REPO_ROOT / "All_Code" / "Data_preprocessing" / "Data_clean"
             / "附件1_clean.csv")
 TEMPLATE_XLSX = REPO_ROOT / "Data" / "附件" / "附件5" / "result1.xlsx"
-RESULTS = Q1_DIR / "Tables"
-RESULTS.mkdir(exist_ok=True)
+RESULTS = Q1_DIR / "Results" / "Tables"
+RESULTS.mkdir(parents=True, exist_ok=True)
 
 T = 144                      # 每日 10 min 时段数
 DT = 1.0 / 6.0               # 时段长度 h
@@ -239,7 +239,7 @@ def _interval_label(t):
 
 
 def export_result1(sol, df):
-    """按模板逐行映射填充 result1.xlsx（不修改模板表头）。
+    """按模板逐行填充 result1.xlsx，时间列统一为内部结束时刻口径。
     映射：内部时段序号 t（1..144，与附件1第 t 行同序）-> 模板“计划购电量”第 t 行。
     专项核对：模板 144 行全部填满；填充总量与逐时段求和一致。"""
     out = RESULTS / "result1.xlsx"
@@ -257,12 +257,15 @@ def export_result1(sol, df):
         raise ValueError(f"模板应有 {T} 行数据，实际 {ws.max_row - 1}")
     mapping_rows = []
     for t in range(T):
+        original_template_label = str(ws.cell(row=t + 2, column=1).value)
+        ws.cell(row=t + 2, column=1, value=_interval_label(t))
         ws.cell(row=t + 2, column=2, value=float(sol["x"][t]))
         mapping_rows.append({
             "t_one_based": t + 1,
             "source_time_label": str(df.iloc[t]["time_label"]),
             "internal_interval_end_label_convention": _interval_label(t),
-            "official_template_label": str(ws.cell(row=t + 2, column=1).value),
+            "official_template_label": original_template_label,
+            "output_interval_label": str(ws.cell(row=t + 2, column=1).value),
             "template_row": t + 2,
         })
     filled = sum(ws.cell(row=t + 2, column=2).value for t in range(T))
@@ -352,8 +355,8 @@ def main():
         "no_storage_baseline_definition": "sum_t price_t * max(load_t - pv_t, 0)",
         "time_mapping_mismatch_count_vs_official_template": mapping_mismatches,
         "time_mapping_note": (
-            "内部按附件时间标签为时段结束时刻；官方模板标签整体后移10分钟，"
-            "结果保持源数据顺序填充，详见q1_time_mapping.csv。"
+            "内部按附件时间标签为时段结束时刻。导出文件时间列已统一为当天0:00至24:00，"
+            "数值保持源数据顺序，原始模板标签保留在q1_time_mapping.csv中供核对。"
         ),
         "validation": checks,
         "perturbation_check": pert,
