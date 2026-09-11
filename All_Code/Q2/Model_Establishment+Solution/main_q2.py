@@ -59,9 +59,9 @@ def main() -> int:
     # P3：滚动与调参
     steps["P3_rolling"] = run_script(os.path.join(MODEL_DIR, "rolling.py"))
 
-    # P4：校验与导出
-    steps["P4_validate"] = run_script(os.path.join(MODEL_DIR, "validate.py"))
+    # P4：导出与校验（先导出 result2，再让第 12 项逐格核对磁盘文件）
     steps["P4_export"] = run_script(os.path.join(MODEL_DIR, "export.py"))
+    steps["P4_validate"] = run_script(os.path.join(MODEL_DIR, "validate.py"))
 
     # 汇总
     with open(os.path.join(DATA_PROC, "q2_rolling_results.pkl"), "rb") as fh:

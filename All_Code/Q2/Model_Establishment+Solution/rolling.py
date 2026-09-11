@@ -43,6 +43,7 @@ SOC0 = 6000.0
 BETA_CAND = [0.0, 0.25, 0.5, 0.75, 1.0]
 M_CAND = [10, 20, 30]
 K2_MULT = [0.25, 0.5, 1.0, 2.0]
+RISK_BUDGET = 0.10   # beta 选取规则：调参窗口费用增幅不超过该预算，预算内最小化紧急购电率
 
 # 预热基准参数（仅用于产生调参窗口的 02-01 期初 SOC）
 BASE_PARAMS = {"beta": 0.5, "alpha": ALPHA}
@@ -164,16 +165,19 @@ def run_tuning_and_formal():
 
     tune_days = list(range(31, 59))   # 02-01..02-28 共 28 天
 
-    # ---- 调参 1：beta ----
-    print("[P3] 调参 beta ∈ {0,0.25,0.5,0.75,1}（固定 M=20, kappa2_base）")
+    # ---- 调参 1：beta（费用增幅预算内最小化紧急购电率，权衡费用与尾部风险）----
+    print(f"[P3] 调参 beta ∈ {BETA_CAND}（固定 M=20, kappa2_base，费用增幅预算 {RISK_BUDGET*100:.0f}%）")
     beta_rows = []
     for b in BETA_CAND:
         params = {"beta": b, "alpha": ALPHA, "kappa2": kappa2_base}
         logs, _ = run_roll(tune_days, s0_0201, params, L20, G20, ds)
         beta_rows.append([b, agg_cost(logs), agg_emergency_rate(logs), len(tune_days)])
     beta_df = pd.DataFrame(beta_rows, columns=["beta", "tuning_cost_total", "tuning_emergency_rate", "n_days"])
-    beta_best = float(beta_df.loc[beta_df["tuning_cost_total"].idxmin(), "beta"])
-    print(f"    选定 beta = {beta_best}")
+    base_cost = float(beta_df.loc[beta_df["beta"] == 0.0, "tuning_cost_total"].iloc[0])
+    beta_df["cost_increase"] = beta_df["tuning_cost_total"] / base_cost - 1.0
+    cand = beta_df[beta_df["cost_increase"] <= RISK_BUDGET]
+    beta_best = float(cand.loc[cand["tuning_emergency_rate"].idxmin(), "beta"])
+    print(f"    选定 beta = {beta_best}（费用增幅 <= {RISK_BUDGET*100:.0f}% 的候选中紧急购电率最低）")
 
     # ---- 调参 2：M ----
     print("[P3] 调参 M ∈ {10,20,30}（固定 beta_best, kappa2_base）")
