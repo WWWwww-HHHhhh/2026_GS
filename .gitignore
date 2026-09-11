@@ -31,3 +31,6 @@ env/
 *.bak
 *.log
 
+
+# Excel lock files
+~$*

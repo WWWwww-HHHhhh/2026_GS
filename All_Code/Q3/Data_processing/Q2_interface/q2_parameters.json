@@ -1,0 +1,47 @@
+{
+  "source_workbook": "All_Code/Q2/Results/Tables/result2.xlsx",
+  "source_workbook_abs": "E:\\2.University_materials\\4.University_life\\6.Study_materials\\others\\freshman_year(secong semester)\\2026_GS\\All_Code\\Q2\\Results\\Tables\\result2.xlsx",
+  "source_workbook_sha256": "cfd33c2304096244d27c9575d7bc4335fc052f22158403334fbe4d428e994bf6",
+  "source_git_commit": "131fe990fb2935af255356a00d9d5c6b24405e5b",
+  "beta": 0.25,
+  "scenario_count": 20,
+  "cvar_alpha": 0.9,
+  "kappa2": 1.0633333333333332,
+  "kappa2_base": 0.5316666666666666,
+  "random_seed": 20260101,
+  "eta_charge": 0.9,
+  "eta_discharge": 0.9,
+  "soc_min_kwh": 1200.0,
+  "soc_max_kwh": 10800.0,
+  "charge_limit_kwh_per_interval": 833.3333333333334,
+  "discharge_limit_kwh_per_interval": 833.3333333333334,
+  "interval_minutes": 10,
+  "allow_partial_extraction": true,
+  "settlement_method": "lexicographic",
+  "report_start": "2025-02-01",
+  "report_end": "2025-12-31",
+  "interval_convention": "interval_index 1..144；t=1 对应真实 00:00-00:10，t=144 对应 23:50-24:00；附件时刻标签为区间结束时刻",
+  "pv_pred_clip_at_zero": {
+    "clipped_cells": 14745,
+    "max_magnitude_kwh": 8.277000873174982,
+    "rationale": "光伏预测物理上不小于 0；夜间 GBM 预测出现小幅负值，按 scenarios.py 的物理截断规则截断到 0，截断统计如实记录。残差文件同步按截断后预测计算，重建场景值与原滚动一致。"
+  },
+  "beta_evidence": {
+    "status": "CONFIRMED",
+    "evidence": [
+      "result2(7) SHA256 = cfd33c2304096244d27c9575d7bc4335fc052f22158403334fbe4d428e994bf6，与 All_Code/Q2/Results/Tables/result2.xlsx 完全一致",
+      "q2_rolling_results.pkl 复算 6 个汇总值与提示词给定值一致（最大误差 < 1e-6），判定为 result2(7) 同一次运行",
+      "同一次运行参数：beta=0.25, M=20, kappa2=0.132917, alpha=0.9",
+      "run_summary.txt 的 beta=0.0/M=30 为更早运行的过期记录，不作为 result2(7) 参数依据"
+    ],
+    "result2_7_run_parameters": {
+      "beta": 0.25,
+      "M": 20,
+      "kappa2": 0.13291666666666666,
+      "alpha": 0.9,
+      "settlement_method": "weighted(M_PLAN=20)"
+    }
+  },
+  "note": "本文件参数取自词典序结算后重新滚动并重新调参的运行，与 q2_plan_reference_long.csv 同一次运行。",
+  "generated_at": "2026-09-11T22:08:45"
+}

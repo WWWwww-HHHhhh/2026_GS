@@ -27,12 +27,9 @@ from optimizer import solve_day2
 from settlement import settle_day
 from scenarios import ScenarioEngine
 
-# 路径常量（自包含）
-GS = r"E:\2.University_materials\4.University_life\6.Study_materials\others\freshman_year(secong semester)\2026_GS"
-Q2CODE = os.path.join(GS, r"All_Code\Q2")
-DATA_PROC = os.path.join(Q2CODE, "Data_processing")
-TABLES = os.path.join(Q2CODE, "Results", "Tables")
-MODEL_DIR = os.path.join(Q2CODE, "Model_Establishment+Solution")
+# 路径常量（可移植，统一由 paths.py 派生；本任务新增输出一律由调用方显式传 Q3 目录）
+from paths import Q2_DATA_PROCESSING as DATA_PROC, Q2_TABLES as TABLES
+MODEL_DIR = str(os.path.dirname(os.path.abspath(__file__)))
 
 T = 144
 D = 365
@@ -92,6 +89,13 @@ def run_roll(days, s0_start, params, L_all, G_all, ds, verbose=False, save_detai
                         ds["load"][:, i], ds["pv"][:, i], s0_in,
                         full_extraction=full_extraction)
         s0 = float(st["s_actual"][T])
+        gap = float(st["emergency_cost_gap"])
+        tol = float(st["cost_tolerance"])
+        if gap > tol + 1e-6:
+            raise RuntimeError(
+                f"{ds['date_str'][i]} 词典序结算第二阶段紧急购电费 {gap:.6e} "
+                f"超过第一阶段最优值+容差 {tol:.6e}，立即终止"
+            )
         entry = {
             "day_index": int(i),
             "date": str(ds["date_str"][i]),
@@ -111,6 +115,13 @@ def run_roll(days, s0_start, params, L_all, G_all, ds, verbose=False, save_detai
             "curtail_kwh": float(np.sum(st["w"])),
             "unextracted_kwh": float(np.sum(plan["x"] - st["y"])),
             "final_soc": s0,
+            "settlement_method": st["settlement_method"],
+            "primary_emergency_cost": st["primary_emergency_cost"],
+            "secondary_status": st["secondary_status"],
+            "emergency_cost_gap": gap,
+            "cost_tolerance": tol,
+            "dev_c": st["dev_c"],
+            "dev_r": st["dev_r"],
         }
         if save_detail:
             entry["plan_x"] = plan["x"].copy()
@@ -144,8 +155,13 @@ def agg_emergency_rate(logs):
     return ek / lk if lk else 0.0
 
 
-def run_tuning_and_formal():
+def run_tuning_and_formal(tables_dir=None, results_path=None):
     t_start = time.time()
+    tables_dir = os.path.abspath(tables_dir) if tables_dir else os.path.abspath(str(TABLES))
+    results_path = (os.path.abspath(results_path) if results_path
+                    else os.path.abspath(os.path.join(str(DATA_PROC), "q2_rolling_results.pkl")))
+    os.makedirs(tables_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(results_path), exist_ok=True)
     ds = load_dataset()
     fc = load_forecasts()
     kappa2_base = float(ds["kappa2_base"])
@@ -240,7 +256,7 @@ def run_tuning_and_formal():
         raise RuntimeError(f"报告期天数应为 334，实际 {len(report_logs)}")
 
     # ---- 保存调参灵敏度表 ----
-    tune_path = os.path.join(TABLES, "tuning_sensitivity.xlsx")
+    tune_path = os.path.join(tables_dir, "tuning_sensitivity.xlsx")
     with pd.ExcelWriter(tune_path, engine="openpyxl") as writer:
         beta_df.assign(is_selected=lambda d: d["beta"] == beta_best).to_excel(writer, sheet_name="beta", index=False)
         m_df.assign(is_selected=lambda d: d["M"] == m_best).to_excel(writer, sheet_name="M", index=False)
@@ -252,9 +268,11 @@ def run_tuning_and_formal():
     scalar_cols = ["day_index", "date", "s0", "E_C", "CVaR", "cost_plan", "cost_emergency",
                    "cost_total", "emergency_rate", "unextracted_ratio", "curtailment_rate",
                    "soc_violate_count", "residual_blocks", "emergency_kwh", "load_kwh",
-                   "curtail_kwh", "unextracted_kwh", "final_soc"]
+                   "curtail_kwh", "unextracted_kwh", "final_soc",
+                   "settlement_method", "primary_emergency_cost", "secondary_status",
+                   "emergency_cost_gap", "cost_tolerance", "dev_c", "dev_r"]
     log_df = pd.DataFrame([{k: l[k] for k in scalar_cols} for l in report_logs])
-    log_path = os.path.join(TABLES, "daily_rolling_log.csv")
+    log_path = os.path.join(tables_dir, "daily_rolling_log.csv")
     log_df.to_csv(log_path, index=False, encoding="utf-8-sig")
     print(f"    逐日滚动日志已写入: {log_path}")
 
@@ -278,7 +296,7 @@ def run_tuning_and_formal():
             "beta": beta_df, "M": m_df, "kappa2": k2_df, "full_extraction": fe_df,
         },
     }
-    res_path = os.path.join(DATA_PROC, "q2_rolling_results.pkl")
+    res_path = results_path
     with open(res_path, "wb") as fh:
         pickle.dump(results, fh, protocol=pickle.HIGHEST_PROTOCOL)
     print(f"    正式运行结果缓存已写入: {res_path}")
