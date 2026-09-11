@@ -1,4 +1,4 @@
-Q2_yy严格校验报告（2026-09-12 01:54:54）
+Q2_yy严格校验报告（2026-09-12 02:46:57）
 总体结果: 全部PASS
 --------------------------------------------------------------------------------
 [PASS] 官方附件逐点匹配: price/load/pv最大绝对差={'price': 0.0, 'load': 0.0, 'pv': 0.0}; 日期逐日一致=True; 仅执行kW/6=kWh
@@ -6,8 +6,10 @@ Q2_yy严格校验报告（2026-09-12 01:54:54）
 [PASS] 因果预测缓存完整: Lhat=(144, 365), Ghat=(144, 365), 声明=prediction day i uses target data only through i-1
 [PASS] 场景严格历史且联合抽样: 逐日按前30个已结束日期重构最大差=4.547e-13; M=10/20/30嵌套最大差=4.547e-13, 通过=True
 [PASS] 报告期未参与选参: selection=2025-01-15..2025-01-31; report=2025-02-01..2025-12-31; n=334
-[PASS] 参数选择可追溯: 唯一选中行=1; M=30, beta=0.2, kappa2=0.13291666666666666
-[PASS] 逐10分钟物理与执行约束: 最大残差={'balance': 2.8421709430404007e-13, 'soc_rec': 9.094947017729282e-13, 'plan_soc_rec': 1.693933882052079e-11, 'data': 2.2737367544323206e-13, 'cost': 0.0, 'emergency5x': 0.0, 'cross_day': 0.0}; 违规计数={'bounds': 0, 'plan_bound': 0, 'plan_both': 0, 'actual_over_plan': 0, 'negative': 0, 'method': 0}
-[PASS] 费用目标与原Q2对比: total=14633754.65, emergency=682383.70; baseline total=15637529.82, emergency=839786.46
-[PASS] result2提交表独立复算: rows(plan/charge)=334/2004; 最大聚合差=7.451e-09; 12-31末列为空=True
-[PASS] 题目四个指定日期直接作答: dates=['2025-03-20', '2025-06-21', '2025-09-23', '2025-12-21']; 储能汇总行=24; 最大复算差=2.910e-11
+[PASS] 题目初始SOC连续传递: first_date=2025-01-01; first_SOC=6000.0; origin=2025-01-01 00:00 SOC=6000 kWh
+[PASS] 参数选择可追溯: 唯一选中行=1; M=30, beta=0.2, kappa2=0.5316666666666666
+[PASS] 逐10分钟物理与执行约束: 最大残差={'balance': 2.2737367544323206e-13, 'soc_rec': 9.094947017729282e-13, 'plan_soc_rec': 1.0999201549566351e-11, 'data': 0.0, 'cost': 0.0, 'emergency5x': 0.0, 'cross_day': 0.0}; 违规计数={'bounds': 0, 'plan_bound': 0, 'plan_both': 0, 'actual_over_plan': 0, 'negative': 0, 'method': 0}; 供给过剩弃电=128696.364658kWh
+[PASS] 年末SOC硬约束: final_SOC=6000.000000000; constraint=2025-12-31 24:00 SOC=6000 kWh (hard)
+[PASS] 费用恒等式与原Q2对照: total=14708963.49, emergency=823950.87; baseline total=15637529.82, emergency=839786.46
+[PASS] result2提交表独立复算: rows(plan/charge)=334/2004; 最大聚合差=6.054e-08; 12-31末列为空=True
+[PASS] 题目四个指定日期直接作答: dates=['2025-03-20', '2025-06-21', '2025-09-23', '2025-12-21']; 储能汇总行=24; 最大复算差=1.455e-11

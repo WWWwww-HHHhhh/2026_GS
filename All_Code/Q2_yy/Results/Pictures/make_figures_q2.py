@@ -20,8 +20,27 @@ plt.rcParams["axes.unicode_minus"] = False
 
 
 def load(name):
-    with open(DATA / name, "rb") as fh:
-        return pickle.load(fh)
+    try:
+        with open(DATA / name, "rb") as fh:
+            return pickle.load(fh)
+    except TypeError as exc:
+        if "BlockPlacement" not in str(exc):
+            raise
+        import pandas.core.internals.blocks as blocks
+        from pandas._libs.internals import BlockPlacement
+        original_new_block = blocks.new_block
+
+        def compatible_new_block(values, placement, *, ndim, refs=None):
+            if isinstance(placement, slice):
+                placement = BlockPlacement(placement)
+            return original_new_block(values, placement=placement, ndim=ndim, refs=refs)
+
+        blocks.new_block = compatible_new_block
+        try:
+            with open(DATA / name, "rb") as fh:
+                return pickle.load(fh)
+        finally:
+            blocks.new_block = original_new_block
 
 
 def save(fig, name):

@@ -35,7 +35,7 @@ def load_scenarios(M):
     return obj["L_all"], obj["G_all"]
 
 
-def run_roll(days, s0_start, spec, scen_map, ds, save_detail=False):
+def run_roll(days, s0_start, spec, scen_map, ds, save_detail=False, hard_terminal_day=None):
     L_all, G_all = scen_map[int(spec["M"])]
     params = {"alpha": ALPHA, "beta": float(spec["beta"]),
               "kappa2": float(ds["kappa2_base"]) * float(spec["kappa_mult"])}
@@ -44,8 +44,11 @@ def run_roll(days, s0_start, spec, scen_map, ds, save_detail=False):
     for i in days:
         s0_in = s0
         price = ds["price"][:, i]
+        day_params = dict(params)
+        if hard_terminal_day is not None and i == int(hard_terminal_day):
+            day_params.update({"hard_terminal": True, "s_ref": SOC0})
         try:
-            plan = solve_day2(price, {"L": L_all[i], "G": G_all[i]}, s0_in, params)
+            plan = solve_day2(price, {"L": L_all[i], "G": G_all[i]}, s0_in, day_params)
         except Exception as exc:
             raise RuntimeError(f"{ds['date_str'][i]} 日前LP求解失败") from exc
         st = settle_day(price, plan["x"], plan["c"], plan["r"],
@@ -61,6 +64,7 @@ def run_roll(days, s0_start, spec, scen_map, ds, save_detail=False):
             "residual_blocks": int(min(30, max(0, i - 1))),
             "emergency_kwh": float(np.sum(st["e"])), "load_kwh": float(np.sum(ds["load"][:, i])),
             "curtail_kwh": float(np.sum(st["w"])), "unextracted_kwh": float(np.sum(plan["x"] - st["y"])),
+            "spill_kwh": float(np.sum(st["spill"])),
             "final_soc": s0, "settlement_method": st["settlement_method"],
             "primary_emergency_cost": st["primary_emergency_cost"],
             "secondary_status": st["secondary_status"], "emergency_cost_gap": 0.0,
@@ -72,6 +76,7 @@ def run_roll(days, s0_start, spec, scen_map, ds, save_detail=False):
                 "plan_r": plan["r"].copy(), "plan_s": plan["s"].copy(),
                 "settle_y": st["y"].copy(), "settle_e": st["e"].copy(),
                 "settle_g": st["g"].copy(), "settle_w": st["w"].copy(),
+                "settle_spill": st["spill"].copy(),
                 "settle_c_actual": st["c_actual"].copy(),
                 "settle_r_actual": st["r_actual"].copy(),
                 "settle_s_actual": st["s_actual"].copy(), "price": price.copy(),
@@ -102,8 +107,9 @@ def run_tuning_and_formal(tables_dir=None, results_path=None):
     ds = load_pickle("q2_dataset.pkl")
     scen_map = {m: load_scenarios(m) for m in M_CAND}
 
+    # 从题目明确给出的2025-01-01 0:00、SOC=6000开始连续滚动。
     # 预热参数预先约定，不使用验证期和报告期数据。
-    warm_logs, s0_tune = run_roll(range(1, 14), SOC0, BASELINE, scen_map, ds)
+    warm_logs, s0_tune = run_roll(range(0, 14), SOC0, BASELINE, scen_map, ds)
     tune_days = list(range(14, 31))
     rows = []
     candidate_logs = {}
@@ -141,7 +147,9 @@ def run_tuning_and_formal(tables_dir=None, results_path=None):
     # 参数在1月31日封存；报告期不再参与选择。保持真实的预热/验证状态继续滚动。
     tune_logs = candidate_logs[(selected["M"], selected["beta"], selected["kappa_mult"])]
     s0_report = float(tune_logs[-1]["final_soc"])
-    report_logs, _ = run_roll(range(31, D), s0_report, selected, scen_map, ds, save_detail=True)
+    # 仅在最后一个报告日施加年末SOC=6000硬约束，避免靠耗空期初储能压低全年费用。
+    report_logs, _ = run_roll(range(31, D), s0_report, selected, scen_map, ds,
+                              save_detail=True, hard_terminal_day=D-1)
     full_logs = warm_logs + tune_logs + report_logs
 
     scalar_cols = [k for k, v in report_logs[0].items() if not isinstance(v, np.ndarray)]
@@ -155,6 +163,8 @@ def run_tuning_and_formal(tables_dir=None, results_path=None):
         "kappa2_base": float(ds["kappa2_base"]), "alpha": ALPHA,
         "selection_period": "2025-01-15..2025-01-31",
         "report_period": "2025-02-01..2025-12-31",
+        "state_origin": "2025-01-01 00:00 SOC=6000 kWh",
+        "terminal_constraint": "2025-12-31 24:00 SOC=6000 kWh (hard)",
         "full_logs": full_logs, "report_logs": report_logs,
         "tuning": {"joint": tune_df},
     }

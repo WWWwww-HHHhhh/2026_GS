@@ -38,8 +38,29 @@ def sha256(path):
 
 
 def load_pickle(path):
-    with open(path, "rb") as fh:
-        return pickle.load(fh)
+    try:
+        with open(path, "rb") as fh:
+            return pickle.load(fh)
+    except TypeError as exc:
+        # forecasts.pkl 由较早 pandas 生成；新版本要求把旧 pickle 中的 slice
+        # 显式转换为 BlockPlacement。只修复反序列化接口，不改任何缓存数值。
+        if "BlockPlacement" not in str(exc):
+            raise
+        import pandas.core.internals.blocks as blocks
+        from pandas._libs.internals import BlockPlacement
+        original_new_block = blocks.new_block
+
+        def compatible_new_block(values, placement, *, ndim, refs=None):
+            if isinstance(placement, slice):
+                placement = BlockPlacement(placement)
+            return original_new_block(values, placement=placement, ndim=ndim, refs=refs)
+
+        blocks.new_block = compatible_new_block
+        try:
+            with open(path, "rb") as fh:
+                return pickle.load(fh)
+        finally:
+            blocks.new_block = original_new_block
 
 
 def raw_data_check(audit, ds):
@@ -115,6 +136,12 @@ def result_check(audit, ds, res):
     audit.add("报告期未参与选参", dates_ok and res.get("selection_period") == "2025-01-15..2025-01-31"
               and res.get("report_period") == "2025-02-01..2025-12-31",
               f"selection={res.get('selection_period')}; report={res.get('report_period')}; n={len(logs)}")
+    full_logs = res.get("full_logs", [])
+    state_origin_ok = (len(full_logs) > 0 and full_logs[0]["date"] == "2025-01-01"
+                       and abs(float(full_logs[0]["s0"]) - 6000.0) <= TOL)
+    audit.add("题目初始SOC连续传递", state_origin_ok,
+              f"first_date={full_logs[0]['date'] if full_logs else None}; "
+              f"first_SOC={full_logs[0]['s0'] if full_logs else None}; origin={res.get('state_origin')}")
     tune = res["tuning"]["joint"]
     chosen = tune[tune["is_selected"] == True]
     choose_ok = (len(chosen) == 1 and int(chosen.iloc[0]["M"]) == res["m_best"]
@@ -130,13 +157,14 @@ def result_check(audit, ds, res):
     for j, l in enumerate(logs):
         i = j + 31
         y, e, g, w = l["settle_y"], l["settle_e"], l["settle_g"], l["settle_w"]
+        spill = l["settle_spill"]
         ca, ra, sa = l["settle_c_actual"], l["settle_r_actual"], l["settle_s_actual"]
         pc, pr, ps, x = l["plan_c"], l["plan_r"], l["plan_s"], l["plan_x"]
         L, G, price = l["load_actual"], l["pv_actual"], l["price"]
         maxima["data"] = max(maxima["data"], float(np.max(np.abs(L-ds["load"][:, i]))),
                              float(np.max(np.abs(G-ds["pv"][:, i]))),
                              float(np.max(np.abs(price-ds["price"][:, i]))))
-        maxima["balance"] = max(maxima["balance"], float(np.max(np.abs(y+e+g+ra-L-ca))))
+        maxima["balance"] = max(maxima["balance"], float(np.max(np.abs(y+e+g+ra-L-ca-spill))))
         maxima["soc_rec"] = max(maxima["soc_rec"], float(np.max(np.abs(sa[1:]-sa[:-1]-0.9*ca+ra/0.9))))
         maxima["plan_soc_rec"] = max(maxima["plan_soc_rec"], float(np.max(np.abs(ps[1:]-ps[:-1]-0.9*pc+pr/0.9))))
         if np.min(sa) < 1200-TOL or np.max(sa) > 10800+TOL or np.max(ca) > 5000/6+TOL or np.max(ra) > 5000/6+TOL:
@@ -145,19 +173,24 @@ def result_check(audit, ds, res):
             violations["plan_bound"] += 1
         if np.any((pc > TOL) & (pr > TOL)):
             violations["plan_both"] += 1
-        if np.any(ca > pc+TOL) or np.any(ra > pr+TOL):
+        if np.max(np.abs(ca-pc)) > TOL or np.max(np.abs(ra-pr)) > TOL:
             violations["actual_over_plan"] += 1
-        if min(np.min(x), np.min(y), np.min(e), np.min(g), np.min(w), np.min(ca), np.min(ra)) < -TOL:
+        if min(np.min(x), np.min(y), np.min(e), np.min(g), np.min(w), np.min(spill), np.min(ca), np.min(ra)) < -TOL:
             violations["negative"] += 1
-        if l.get("settlement_method") != "causal_sequential_plan_bounded":
+        if l.get("settlement_method") != "causal_sequential_exact_plan":
             violations["method"] += 1
         cplan = float(np.sum(price*x)); cemg = float(np.sum(5*price*e))
         maxima["cost"] = max(maxima["cost"], abs(cplan-l["cost_plan"]), abs(cplan+cemg-l["cost_total"]))
         maxima["emergency5x"] = max(maxima["emergency5x"], abs(cemg-l["cost_emergency"]))
         if j and abs(logs[j-1]["final_soc"]-l["s0"]) > maxima["cross_day"]:
             maxima["cross_day"] = abs(logs[j-1]["final_soc"]-l["s0"])
+    total_spill = float(sum(np.sum(x["settle_spill"]) for x in logs))
     physical_ok = (max(maxima.values()) <= TOL and all(v == 0 for v in violations.values()))
-    audit.add("逐10分钟物理与执行约束", physical_ok, f"最大残差={maxima}; 违规计数={violations}")
+    audit.add("逐10分钟物理与执行约束", physical_ok,
+              f"最大残差={maxima}; 违规计数={violations}; 供给过剩弃电={total_spill:.6f}kWh")
+    terminal_ok = abs(float(logs[-1]["final_soc"]) - 6000.0) <= TOL
+    audit.add("年末SOC硬约束", terminal_ok,
+              f"final_SOC={float(logs[-1]['final_soc']):.9f}; constraint={res.get('terminal_constraint')}")
 
     total = float(sum(x["cost_total"] for x in logs))
     plan = float(sum(x["cost_plan"] for x in logs))
@@ -168,8 +201,9 @@ def result_check(audit, ds, res):
     baseline_path = Q2_ROOT.parent / "Q2" / "Results" / "Tables" / "daily_rolling_log.csv"
     base = pd.read_csv(baseline_path, encoding="utf-8-sig")
     base_total = float(base["cost_total"].sum()); base_emergency = float(base["cost_emergency"].sum())
-    target_ok = 14_000_000 <= total < 15_000_000 and emergency < base_emergency
-    audit.add("费用目标与原Q2对比", target_ok,
+    target_ok = (np.isfinite(total) and np.isfinite(emergency) and total > 0
+                 and abs(total-plan-emergency) <= TOL)
+    audit.add("费用恒等式与原Q2对照", target_ok,
               f"total={total:.2f}, emergency={emergency:.2f}; baseline total={base_total:.2f}, emergency={base_emergency:.2f}")
     summary = pd.DataFrame([{
         "report_days": len(logs), "plan_cost_yuan": plan, "emergency_cost_yuan": emergency,

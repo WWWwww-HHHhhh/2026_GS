@@ -7,7 +7,7 @@ P2 两阶段随机 LP + CVaR 单日优化器（2026 数模 C 题 问题二）
 
 【全局铁律摘要】
 1. 第一阶段变量 x/c/r/s/xi 跨场景共享（非预期性），严禁写成 c^w,r^w,s^w。
-2. 第二阶段变量 y/u/e/g/w/q 每个场景 m 独立。
+2. 第二阶段变量 y/u/e/g/w/v/q 每个场景 m 独立；v 为供给超过负荷与计划充电后的弃电。
 3. 惩罚项 eps 与软终端罚项 kappa2 只用于求解；报告的真实费用不含它们。
 4. 公共电量平衡式 y+e+g+r = L+c；SOC 递推 s_t = s_{t-1} + eta_c*c_t - r_t/eta_r。
 5. 紧急购电严格按交易时刻电价的 5 倍计费。
@@ -28,6 +28,7 @@ DEFAULT_PARAMS = {
     "s_max": 10800.0,
     "cap": 833.3333333333334,  # 5000 kW * 1/6 h
     "s_ref": None,            # 默认取 s0
+    "hard_terminal": False,   # 报告期最后一天强制回到给定年末SOC
     "full_extraction": False, # 若 True，强制 y=x（全量提取敏感性）
 }
 
@@ -63,6 +64,7 @@ def solve_day2(price, scenarios, s0, params=None):
     cap = float(p["cap"])
     s_ref = float(s0) if p["s_ref"] is None else float(p["s_ref"])
     full_extraction = bool(p.get("full_extraction", False))
+    hard_terminal = bool(p.get("hard_terminal", False))
 
     price = np.asarray(price, dtype=float)
     if price.shape != (T,):
@@ -82,11 +84,11 @@ def solve_day2(price, scenarios, s0, params=None):
     # 第一阶段（跨场景共享）：
     #   x: 0..143 ; c: 144..287 ; r: 288..431 ; s: 432..576 (t=0..144) ;
     #   xi_p: 577 ; xi_m: 578
-    # 第二阶段：每场景 721 个变量（y/e/g/w/u 各 144 + q 1）
-    #   y: 0..143 ; e: 144..287 ; g: 288..431 ; w: 432..575 ; u: 576..719 ; q: 720
+    # 第二阶段：每场景 865 个变量（y/e/g/w/u/v 各 144 + q 1）
+    # v 是真实供给超过“负荷+计划充电”时的弃电，保证固定日前充放电计划可原样执行。
     # zeta: 最后 1 个自由变量
     N_FIRST = 3 * T + (T + 1) + 2          # 579
-    N_SCEN = 5 * T + 1                     # 721
+    N_SCEN = 6 * T + 1                     # 865
     BASE2 = N_FIRST
     NZETA = N_FIRST + M * N_SCEN
     N_VARS = NZETA + 1
@@ -100,7 +102,8 @@ def solve_day2(price, scenarios, s0, params=None):
 
     def scen_var(m, kind, t=None):
         base = BASE2 + m * N_SCEN
-        off = {"y": 0, "e": T, "g": 2 * T, "w": 3 * T, "u": 4 * T, "q": 5 * T}[kind]
+        off = {"y": 0, "e": T, "g": 2 * T, "w": 3 * T, "u": 4 * T,
+               "v": 5 * T, "q": 6 * T}[kind]
         if kind == "q":
             return base + off
         return base + off + t
@@ -128,13 +131,14 @@ def solve_day2(price, scenarios, s0, params=None):
     rows_ub, cols_ub, vals_ub = [], [], []
     b_eq, b_ub = [], []
 
-    # 等式 1：场景电量平衡 y+e+g+r = L+c  (M*T 行)
+    # 等式 1：场景电量平衡 y+e+g+r = L+c+v  (M*T 行)
     for m in range(M):
         for t in range(T):
             row = m * T + t
-            rows_eq += [row] * 5
-            cols_eq += [scen_var(m, "y", t), scen_var(m, "e", t), scen_var(m, "g", t), ir[t], ic[t]]
-            vals_eq += [1.0, 1.0, 1.0, 1.0, -1.0]
+            rows_eq += [row] * 6
+            cols_eq += [scen_var(m, "y", t), scen_var(m, "e", t), scen_var(m, "g", t),
+                        ir[t], ic[t], scen_var(m, "v", t)]
+            vals_eq += [1.0, 1.0, 1.0, 1.0, -1.0, -1.0]
             b_eq.append(L[m, t])
 
     # 等式 2：u = x - y  ->  x - y - u = 0  (M*T 行)
@@ -224,6 +228,11 @@ def solve_day2(price, scenarios, s0, params=None):
     for t in range(T + 1):
         bounds[is_[t]] = (s_min, s_max)
     bounds[is_[0]] = (s0, s0)          # 期初 SOC 固定
+    if hard_terminal:
+        # 年末状态与题目给定初始状态使用同一可比口径；同时固定松弛变量为0。
+        bounds[is_[T]] = (s_ref, s_ref)
+        bounds[ixi_p] = (0.0, 0.0)
+        bounds[ixi_m] = (0.0, 0.0)
     for m in range(M):
         for t in range(T):
             bounds[scen_var(m, "g", t)] = (0.0, G[m, t])
@@ -270,13 +279,14 @@ def solve_day2(price, scenarios, s0, params=None):
 
     # 提取第二阶段
     y = np.zeros((M, T)); e = np.zeros((M, T)); g = np.zeros((M, T))
-    w = np.zeros((M, T)); u = np.zeros((M, T)); q = np.zeros(M)
+    w = np.zeros((M, T)); u = np.zeros((M, T)); v = np.zeros((M, T)); q = np.zeros(M)
     for m in range(M):
         y[m] = xopt[[scen_var(m, "y", t) for t in range(T)]]
         e[m] = xopt[[scen_var(m, "e", t) for t in range(T)]]
         g[m] = xopt[[scen_var(m, "g", t) for t in range(T)]]
         w[m] = xopt[[scen_var(m, "w", t) for t in range(T)]]
         u[m] = xopt[[scen_var(m, "u", t) for t in range(T)]]
+        v[m] = xopt[[scen_var(m, "v", t) for t in range(T)]]
         q[m] = xopt[scen_var(m, "q")]
     zeta = xopt[NZETA]
 
@@ -291,7 +301,7 @@ def solve_day2(price, scenarios, s0, params=None):
         "E_C": E_C,
         "CVaR": cvar,
         "C_scen": C,
-        "y": y, "e": e, "g": g, "w": w, "u": u, "q": q, "zeta": float(zeta),
+        "y": y, "e": e, "g": g, "w": w, "u": u, "v": v, "q": q, "zeta": float(zeta),
         "status": int(result.status),
         "eq_residual": eq_residual,
         "ub_violation": ub_violation,
@@ -307,7 +317,7 @@ def check_day(price, scenarios, s0, params=None):
     for m in range(M):
         for t in range(Tt):
             res = abs(plan["y"][m, t] + plan["e"][m, t] + plan["g"][m, t] + plan["r"][t]
-                      - scenarios["L"][m, t] - plan["c"][t])
+                      - scenarios["L"][m, t] - plan["c"][t] - plan["v"][m, t])
             max_res = max(max_res, res)
     soc_violate = (plan["s"] < DEFAULT_PARAMS["s_min"] - 1e-6) | (plan["s"] > DEFAULT_PARAMS["s_max"] + 1e-6)
     print(f"    平衡残差最大值 = {max_res:.3e}")
