@@ -1,6 +1,6 @@
 % !TeX root = ../main.tex
-\section{问题一储能效率口径对照分析}
-\label{app:q1_efficiency}
+\section{储能系统参数说明}
+\label{app:storage_parameters}
 
 \subsection{对照方案}
 
@@ -92,6 +92,118 @@
 正文及正式结果文件仍采用充电效率和放电效率均为 \(0.9\)
 的主模型结果。
 
+
+\section{问题一模型检验的补充说明}
+\label{app:q1_milp_check}
+
+\subsection{等式约束残差}
+
+将最终调度结果代回电量平衡方程与储能状态转移方程，定义残差为
+\begin{equation}
+\begin{aligned}
+    e_t^{\mathrm{bal}}
+    &=x_t^\ast+G_t-w_t^\ast+r_t^\ast-L_t-c_t^\ast,\\
+    e_t^{\mathrm{sto}}
+    &=s_t^\ast-s_{t-1}^\ast
+      -\eta_c c_t^\ast+\frac{r_t^\ast}{\eta_r}.
+\end{aligned}
+\label{eq:q1_constraint_residuals}
+\end{equation}
+
+144个时段的最大绝对残差分别为
+\[
+    \max_t\left|e_t^{\mathrm{bal}}\right|
+    =2.27\times10^{-13}\,\mathrm{kWh},
+    \qquad
+    \max_t\left|e_t^{\mathrm{sto}}\right|
+    =8.31\times10^{-13}\,\mathrm{kWh}.
+\]
+因此，数值解在计算精度范围内满足两类等式约束。
+
+储能荷电状态定义为
+\begin{equation}
+    \mathrm{SOC}_t
+    =\frac{s_t^\ast}{12000}\times100\%.
+    \label{eq:q1_soc_conversion}
+\end{equation}
+计算结果表明，全天SOC始终处于允许范围内。
+
+\subsection{充放电互斥辅助检验}
+
+引入二进制变量 $b_t^{\mathrm c}$ 和 $b_t^{\mathrm r}$，
+分别表示第 $t$ 时段充电通道和放电通道是否启用，并设置
+\begin{equation}
+\begin{aligned}
+    c_t&\leq q_{\max}b_t^{\mathrm c},\\
+    r_t&\leq q_{\max}b_t^{\mathrm r},\\
+    b_t^{\mathrm c}+b_t^{\mathrm r}&\leq1,
+    \qquad
+    b_t^{\mathrm c},b_t^{\mathrm r}\in\{0,1\}.
+\end{aligned}
+\label{eq:q1_milp_exclusivity}
+\end{equation}
+
+辅助模型保留原有电量平衡、储能状态转移、运行边界及日循环约束，并限制购电费用不超过
+$C_1^\ast+\varepsilon$。
+
+设 $v_t^{\mathrm c}$ 和 $v_t^{\mathrm r}$ 为通道状态变化变量，相邻时段状态变化的绝对值可线性化为
+\begin{equation}
+\begin{aligned}
+    v_t^j&\geq b_t^j-b_{t-1}^j,\\
+    v_t^j&\geq b_{t-1}^j-b_t^j,
+    \qquad
+    j\in\{\mathrm c,\mathrm r\},
+    \quad t=2,\ldots,T.
+\end{aligned}
+\label{eq:q1_switch_linearization}
+\end{equation}
+
+辅助模型的目标函数为
+\begin{equation}
+    \min
+    \sum_{t=2}^{T}
+    \left(v_t^{\mathrm c}+v_t^{\mathrm r}\right)
+    +
+    10^{-6}\sum_{t=1}^{T}
+    \left(b_t^{\mathrm c}+b_t^{\mathrm r}\right),
+    \label{eq:q1_auxiliary_objective}
+\end{equation}
+其中，第一项用于减少通道状态切换，第二项用于抑制不必要的通道启用。
+
+采用 HiGHS 求解后，辅助方案的购电费用为
+$35126.948689$ 元，与原最低费用之差约为
+$10^{-4}$ 元。充电和放电分别发生于45个和37个时段，通道启用状态共变化12次，说明增加互斥约束不会实质性损害原方案的经济性。
+
+\section{问题二滚动求解与参数标定细节}
+\label{app:q2_solution_details}
+
+\subsection{线性规划形式与求解设置}
+
+每日调度模型整理为标准线性规划形式
+\begin{equation}
+\begin{aligned}
+    \min_{\boldsymbol z}\quad
+    &\boldsymbol f^{\mathrm T}\boldsymbol z,\\
+    \mathrm{s.t.}\quad
+    &\boldsymbol A_{\mathrm{eq}}\boldsymbol z
+    =\boldsymbol b_{\mathrm{eq}},\\
+    &\boldsymbol A_{\mathrm{ub}}\boldsymbol z
+    \leq\boldsymbol b_{\mathrm{ub}},\\
+    &\boldsymbol l\leq\boldsymbol z\leq\boldsymbol u,
+\end{aligned}
+\label{eq:q2_standard_lp}
+\end{equation}
+其中，$\boldsymbol z$ 为全部决策变量组成的向量，
+$\boldsymbol f$ 为目标函数系数向量，
+$\boldsymbol A_{\mathrm{eq}}$ 和 $\boldsymbol A_{\mathrm{ub}}$
+分别为等式与不等式约束矩阵，
+$\boldsymbol l$ 和 $\boldsymbol u$ 为变量上下界。
+
+当 $M=30$ 时，单日模型包含26530个变量、13105条等式约束和4350条不等式约束。为提高计算效率，采用稀疏矩阵存储约束，并通过 SciPy 调用 HiGHS 线性规划求解器。求解后，仅保留状态为最优，且等式最大绝对残差与不等式最大违反量均不超过 $10^{-5}$ 的解。
+
+每日完成真实结算后，将日末储电量作为次日初始状态，从而实现全年储能状态的连续传递。
+
+
 \section{问题二模型检验与局限性分析}
 \label{app:q2_validation}
 
@@ -156,3 +268,166 @@
 
 此外，30日滚动残差库对极端天气和长期季节变化的覆盖能力有限。
 后续可在严格保持因果性的前提下扩大历史残差窗口，增加极端残差的抽样权重，或引入日内滚动修正机制，以提高场景覆盖能力并减少供需偏差造成的额外成本。
+
+\section{问题三滚动优化的求解细节}
+\label{app:q3_solution}
+
+\subsection{线性规划的矩阵化}
+
+设发布时刻 \(k\) 后剩余的时段数为
+\(H_k=|\mathcal A_k|\)。
+将该滚动窗口内的决策变量和场景变量排列为
+\begin{equation}
+\boldsymbol{\chi}_k
+=
+\left(
+\widetilde{\boldsymbol{x}},
+\boldsymbol{c},
+\boldsymbol{r},
+\boldsymbol{s},
+\boldsymbol{z},
+\xi_k^+,
+\xi_k^-,
+\zeta_k,
+\left\{
+\boldsymbol{y}^{\omega},
+\boldsymbol{e}^{\omega},
+\boldsymbol{g}^{\omega},
+\boldsymbol{w}^{\omega},
+\boldsymbol{h}^{\omega},
+q_{k\omega}
+\right\}_{\omega=1}^{M}
+\right)^{\mathrm T}
+\label{eq:app_q3_variable_vector}
+\end{equation}
+其中，\(\widetilde{\boldsymbol{x}}\)、\(\boldsymbol{c}\) 和
+\(\boldsymbol{r}\) 为剩余时段的购电与储能决策，
+\(\boldsymbol{s}\) 包含发布时刻的初始储电量及后续状态。
+其余变量分别用于描述调整费用、终端偏差和各场景下的电量分配。
+
+将目标函数、场景电量平衡和CVaR线性化关系写成矩阵形式，可得
+\begin{equation}
+\begin{aligned}
+\min_{\boldsymbol{\chi}_k}\quad
+&\boldsymbol{f}_k^{\mathrm T}\boldsymbol{\chi}_k \\
+\mathrm{s.t.}\quad
+&\boldsymbol{A}_{k,\mathrm{eq}}\boldsymbol{\chi}_k
+=\boldsymbol{b}_{k,\mathrm{eq}} \\
+&\boldsymbol{A}_{k,\mathrm{ub}}\boldsymbol{\chi}_k
+\leq\boldsymbol{b}_{k,\mathrm{ub}} \\
+&\boldsymbol{l}_k
+\leq\boldsymbol{\chi}_k
+\leq\boldsymbol{u}_k
+\end{aligned}
+\label{eq:app_q3_standard_lp}
+\end{equation}
+目标向量依次写入期望购电费用、CVaR、软终端惩罚和储能吞吐惩罚的系数。
+场景电量平衡、光伏分配、储能状态转移和软终端关系构成等式约束。
+调整费用线性化、计划电提取上限和CVaR超额费用关系构成不等式约束。
+储电量范围、充放电上限及变量非负性通过上下界设置。
+
+当 \(M=30\) 且 \(k=0\) 时，滚动窗口包含全天
+\(H_0=144\) 个时段，线性规划共有22354个变量、8930条等式约束和4350条不等式约束。
+随着日内时刻向后推进，剩余时段数逐渐减少，模型规模也随之下降。
+为减少矩阵存储和计算开销，程序采用稀疏矩阵组织约束，并调用SciPy中的HiGHS线性规划求解器。
+
+\subsection{日内滚动求解过程}
+
+每日 \(0{:}00\) 以当日期初储电量为初始状态，并根据此时可获得的负荷与光伏预测生成30个联合场景。
+求解全天随机规划模型后，得到零点计划购电量
+\(\boldsymbol{x}^{0}\) 以及全天计划充放电量。
+
+当策略规定的预报更新时刻到达后，依次执行以下步骤。
+
+\begin{enumerate}[label=\arabic*.]
+    \item 固定更新时刻之前已经执行的购电量、充电量和放电量。
+    \item 读取当前时刻发布的光伏预报，并将其转换为剩余10分钟时段的预测电量。
+    \item 以当前实际储电量作为新窗口的初始状态，重新生成负荷与光伏联合场景。
+    \item 对尚未执行的时段重新求解线性规划，得到更新后的购电量、充电量和放电量。
+    \item 将更新结果替换原方案中尚未执行的部分，已经执行的结果保持不变。
+\end{enumerate}
+
+各次调整均以当日 \(0{:}00\) 制定的
+\(\boldsymbol{x}^{0}\) 作为费用结算基准，而不是相对上一次调整结果逐次累计。
+因此，同一时段即使经过多次预报更新，最终只比较执行前生效的购电量
+\(\widetilde{x}_t\) 与零点计划购电量 \(x_t^0\)。
+
+对于一般调度日，日末储电量以当日期初储电量为软目标。
+完成当天144个时段的实际结算后，将所得日末储电量传递为下一日的初始储电量。
+在2025年12月31日的最后一个滚动窗口中，日末储电量被固定为
+\(6000\,\mathrm{kWh}\)，从而保证全年状态闭合。
+
+\subsection{真实数据的逐时段结算}
+
+滚动模型求得购电量和储能计划后，按照实际负荷与实际光伏逐时段进行结算。
+储能充放电量严格执行当前生效的计划，不利用当前时段之后的真实数据进行事后调整。
+
+设第 \(t\) 个时段扣除储能放电后的用电需求为
+\begin{equation}
+D_t=L_t+c_t-r_t
+\label{eq:app_q3_net_demand}
+\end{equation}
+当 \(D_t\geq0\) 时，依次使用光伏、计划购电和紧急购电满足需求
+\begin{equation}
+\begin{aligned}
+g_t&=\min\{G_t,D_t\} \\
+y_t&=\min\left\{\widetilde{x}_t,D_t-g_t\right\} \\
+e_t&=\max\left\{0,D_t-g_t-y_t\right\} \\
+w_t&=G_t-g_t
+\end{aligned}
+\label{eq:app_q3_actual_settlement}
+\end{equation}
+当 \(D_t<0\) 时，说明计划放电量超过负荷与充电需求。
+此时多余电量记为供给过剩弃电量
+\begin{equation}
+h_t=\max\{0,-D_t\}
+\label{eq:app_q3_spill}
+\end{equation}
+由此，各时段的实际电量平衡满足
+\begin{equation}
+y_t+e_t+g_t+r_t
+=
+L_t+c_t+h_t
+\label{eq:app_q3_actual_balance}
+\end{equation}
+
+储电量根据实际执行的计划充放电量更新
+\begin{equation}
+s_t=s_{t-1}+\eta_c c_t-\frac{r_t}{\eta_r}
+\label{eq:app_q3_actual_soc}
+\end{equation}
+由于储能计划在场景间共享并在实际运行中精确执行，因此储电量状态不随场景中的负荷和光伏变化。
+
+第 \(t\) 个时段的实际费用由调整后的市场结算费用和紧急购电费用组成
+\begin{equation}
+C_t^{\mathrm{actual}}
+=
+\max\left\{
+\frac{\pi_t}{2}\left(\widetilde{x}_t+x_t^0\right),
+\frac{3\pi_t}{2}\widetilde{x}_t-\frac{\pi_t}{2}x_t^0
+\right\}
++
+5\pi_t e_t
+\label{eq:app_q3_actual_cost}
+\end{equation}
+目标函数中的CVaR、软终端惩罚和储能吞吐惩罚只用于确定调度方案，不计入最终实际购电费用。
+
+\subsection{策略回测与结果汇总}
+
+正式回测范围为2025年2月1日至12月31日，共334个调度日。
+对每种预报更新策略，均从
+\(6000\,\mathrm{kWh}\) 的初始储电量出发，按照相同的负荷预测、场景生成、费用结算和跨日状态传递规则逐日运行。
+
+程序分别保存每个时段的零点购电计划、最终购电计划、计划电提取量、紧急购电量、充放电量、弃光量、供给过剩弃电量和储电量。
+随后按日汇总市场购电费用与紧急购电费用，并计算各策略在334个调度日内的实际总费用
+\begin{equation}
+C_{\mathrm{year}}
+=
+\sum_{i=1}^{334}
+\sum_{t=1}^{144}
+C_{i,t}^{\mathrm{actual}}
+\label{eq:app_q3_annual_cost}
+\end{equation}
+
+最终在相同的数据和结算口径下比较六种策略的全年费用。
+该过程使策略间的费用差异仅来源于预报更新时间及其引起的购电和储能计划调整。

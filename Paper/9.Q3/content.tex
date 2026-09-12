@@ -11,29 +11,28 @@
 \subsection{符号与变量说明}
 后续购电量、充放电量和储电量均以 \(\mathrm{kWh}\) 为单位。
 
-\begin{table}[H]
+% 表4：问题三剩余符号表
+\begin{table}[htbp]
     \centering
-    \caption{问题三新增符号说明}
+    \caption{问题三其余符号说明}
     \label{tab:q3_symbols}
-    \begin{tabularx}{0.88\textwidth}
-    {@{}>{\centering\arraybackslash}p{0.22\textwidth}
-    >{\centering\arraybackslash}X@{}}
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabularx}{0.92\textwidth}{
+        >{\centering\arraybackslash}p{0.25\textwidth}
+        >{\centering\arraybackslash}X}
         \toprule
         符号 & 含义 \\
         \midrule
-        \(x_t^0\) & 当日 \(0{:}00\) 制定的第 \(t\) 时段计划购电量 \\
-        \(\widetilde{x}_t\) & 第 \(t\) 时段执行前最终生效的购电量 \\
-        \(z_t\) & 第 \(t\) 时段购电调整产生的结算费用 \\
-        \(\mathcal{A}_k\) & 发布时刻 \(k\) 后尚未执行的时段集合 \\
-        \(\omega\) & 场景编号 \\
-        \(M\) & 场景总数 \\
-        \(\alpha\) & CVaR置信水平 \\
-        \(\beta\) & CVaR风险权重 \\
-        \(\kappa_3\) & 日末储电量偏差的惩罚系数 \\
+        $\omega$ & 场景编号 \\
+        $M$ & 场景总数 \\
+        $\kappa_3$ & 问题三中日末储电量偏差的惩罚系数 \\
+        $x_t^0$ & 当日 0:00 制定的第 $t$ 时段计划购电量 \\
+        $\widetilde{x}_t$ & 第 $t$ 时段执行前最终生效的购电量 \\
+        $z_t$ & 第 $t$ 时段购电调整产生的结算费用 \\
+        $\mathcal{A}_k$ & 发布时刻 $k$ 后尚未执行的时段集合 \\
         \bottomrule
     \end{tabularx}
 \end{table}
-
 \subsection{预报数据处理与场景生成}
 
 \subsubsection{光伏预报的时间尺度转换}
@@ -77,7 +76,7 @@
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.76\textwidth]
+    \includegraphics[width=0.7\textwidth]
     {../All_Code/Q3/Results/Pictures/q3_fig3_forecast_conversion_error.pdf}
     \caption{光伏预报转换至10分钟尺度的误差对比}
     \label{fig:q3_forecast_error}
@@ -125,123 +124,429 @@ j_{\omega}<i
 
 
 \subsection{滚动随机线性规划模型}
-
-问题三在前两问模型基础上，引入多时点光伏预测和购电计划调整机制。记零点计划购电量为 $x_t^0$，时段执行前最终生效的购电量为 $\widetilde{x}_t$。实际购电量 $y_t^\omega$、紧急购电量 $e_t^\omega$、光伏利用量 $g_t^\omega$ 和弃光量 $w_t^\omega$ 沿用问题二定义，并以 $h_t^\omega$ 表示储能放电超过即时需求时的余电处置量。购电计划和储能决策在同一窗口内对各场景共享，实际购电和缺口处理允许随场景变化。
-
 \subsubsection{购电调整费用与风险目标}
 
-根据题意，计划购电量调低部分按交易电价的 $50\%$ 结算，调高部分按交易电价的 $150\%$ 结算。因此，最终购电计划相对零点计划的市场费用可表示为
+设 \(x_t^0\) 为 \(0{:}00\) 制定的计划购电量，
+\(\widetilde{x}_t\) 为时段执行前最终生效的购电量。
+当购电计划调低时，减少部分按交易电价的 \(50\%\) 结算。
+当购电计划调高时，增加部分按交易电价的 \(150\%\) 结算。
+引入辅助变量 \(z_t\) 表示调整后的市场购电费用，并设置
 \begin{equation}
-F_t(\widetilde{x}_t,x_t^0)
-=
-\max\left\{
-\frac{\pi_t}{2}(\widetilde{x}_t+x_t^0),
+\begin{aligned}
+z_t&\geq
+\frac{\pi_t}{2}\left(\widetilde{x}_t+x_t^0\right) \\
+z_t&\geq
 \frac{3\pi_t}{2}\widetilde{x}_t-\frac{\pi_t}{2}x_t^0
-\right\}.
-\label{eq:q3_settlement}
-\end{equation}
-
-引入辅助变量 $z_t$，将其线性化为
-\begin{equation}
-z_t\geq\frac{\pi_t}{2}(\widetilde{x}_t+x_t^0),
-\qquad
-z_t\geq\frac{3\pi_t}{2}\widetilde{x}_t-\frac{\pi_t}{2}x_t^0.
+\end{aligned}
 \label{eq:q3_settlement_linear}
 \end{equation}
-在费用最小化目标下，$z_t$ 自动取两者较大值，从而保持模型为线性规划。
+在费用最小化目标下，\(z_t\) 自动取两个表达式的较大值，从而分别对应调低和调高购电计划的结算费用。
 
-设第 $k$ 次预报发布后尚未执行的时段集合为 $\mathcal{A}_k$，场景 $\omega$ 下的未来购电费用为
+设 \(\mathcal A_k\) 为发布时刻 \(k\) 后尚未执行的时段集合。
+场景 \(\omega\) 下剩余时段的购电费用为
 \begin{equation}
-C_k^\omega=
-\sum_{t\in\mathcal{A}_k}
-\left(z_t+5\pi_t e_t^\omega\right).
+C_k^\omega
+=
+\sum_{t\in\mathcal A_k}
+\left(z_t+5\pi_t e_t^\omega\right)
 \label{eq:q3_cost}
 \end{equation}
+其中，\(e_t^\omega\) 为紧急购电量。
 
-为兼顾平均购电成本与高费用场景风险，在期望费用基础上引入 CVaR。取置信水平 $\alpha=0.9$，风险权重 $\beta=0.2$，则单次滚动窗口的目标函数为
+为兼顾平均费用与高费用场景风险，采用期望费用和CVaR加权构造目标函数
 \begin{equation}
 \begin{aligned}
 \min J_k={}&
-(1-\beta)\sum_{\omega}p_{\omega}C_k^\omega
-+\beta\left(
-\zeta_k+\frac{1}{1-\alpha}
-\sum_{\omega}p_{\omega}q_{k\omega}
-\right)\\
+(1-\beta)\sum_{\omega=1}^{M}p_\omega C_k^\omega
++\beta\left[
+\zeta_k+
+\frac{1}{1-\alpha}
+\sum_{\omega=1}^{M}p_\omega q_{k\omega}
+\right] \\
 &+\kappa_3(\xi_k^++\xi_k^-)
-+\gamma_3\sum_{t\in\mathcal{A}_k}(c_t+r_t),
++\gamma_3\sum_{t\in\mathcal A_k}(c_t+r_t)
 \end{aligned}
 \label{eq:q3_objective}
 \end{equation}
-其中
-\begin{equation}
+其中，
+\[
 q_{k\omega}\geq C_k^\omega-\zeta_k,
 \qquad
-q_{k\omega}\geq0.
-\label{eq:q3_cvar}
-\end{equation}
-$\kappa_3$ 为终端储电量偏差罚系数，$\gamma_3$ 为储能吞吐罚系数，两者仅用于稳定优化结果，不计入最终购电费用。
+q_{k\omega}\geq0
+\]
+本文取
+\(\alpha=0.9\)、\(\beta=0.2\)、
+\(\kappa_3=0.531667\) 和 \(\gamma_3=10^{-4}\)。
+后两项分别限制日末储电量偏差和不必要的储能吞吐，不计入实际购电费用。
 
-\subsubsection{场景约束与滚动更新}
+\subsubsection{场景运行约束}
 
-对于每个场景 $\omega$ 和尚未执行的时段 $t$，电量平衡及光伏分配满足
+问题三沿用问题二的场景电量平衡、光伏分配和储能运行约束。
+区别在于，场景中的计划电提取量受到当前最终生效购电计划
+\(\widetilde{x}_t\) 的限制。
+对于发布时刻 \(k\) 后尚未执行的时段 \(t\in\mathcal A_k\)，有
 \begin{equation}
 \begin{aligned}
 y_t^\omega+e_t^\omega+g_t^\omega+r_t
-&=L_t^\omega+c_t+h_t^\omega,\\
-g_t^\omega+w_t^\omega&=G_t^\omega,\\
-0\leq y_t^\omega&\leq\widetilde{x}_t.
+&=
+L_t^\omega+c_t+h_t^\omega \\
+g_t^\omega+w_t^\omega
+&=
+G_t^\omega \\
+0\leq y_t^\omega
+&\leq\widetilde{x}_t
 \end{aligned}
 \label{eq:q3_balance}
 \end{equation}
+其中，\(w_t^\omega\) 为弃光量，\(h_t^\omega\) 为供给过剩弃电量。
+\(e_t^\omega\)、\(g_t^\omega\)、\(w_t^\omega\) 和
+\(h_t^\omega\) 均为非负变量。
 
-储能状态转移、容量和充放电功率约束与问题一保持一致，即
-\begin{equation}
-s_t=s_{t-1}+\eta_c c_t-\frac{r_t}{\eta_r},
-\qquad
-1200\leq s_t\leq10800,
-\qquad
-0\leq c_t,r_t\leq833.33.
-\label{eq:q3_soc}
-\end{equation}
+储能状态转移、储电量边界和充放电上限与问题二保持一致。
+一般调度日仍采用软终端约束，将日末储电量控制在当日期初储电量附近。
+2025年12月31日固定日末储电量为
+\(6000\,\mathrm{kWh}\)，保证全年储能状态闭合。
 
-普通日允许日末储电量相对当日期初值产生少量偏差，并通过
-\begin{equation}
-s_T-s_{i,0}=\xi_k^+-\xi_k^-,
-\qquad
-\xi_k^+,\xi_k^-\geq0
-\label{eq:q3_terminal}
-\end{equation}
-施加软终端约束。年末最后一天则取消该松弛变量，并严格规定 $s_T=6000$ kWh，以保证全年储能状态闭合。
+\subsection{模型求解}
 
-每天 $0{:}00$ 首先利用最新预测制定全天计划。在 $6{:}00$、$12{:}00$ 和 $18{:}00$ 获得新预测后，仅重新优化当日尚未执行的时段，已执行决策保持不变，并以当前真实储电量作为新的初始状态。由此分别构造 $S_0$、$S_6$、$S_{12}$、$S_{18}$、$S_{6,12}$ 和 $S_{\mathrm{all}}$ 六种策略，以比较不同预测更新频率对购电成本的影响。
+上述目标函数与约束均为线性关系，因此将各发布时刻的剩余时段优化问题转化为线性规划，并采用HiGHS求解器计算。
 
+每日 \(0{:}00\) 首先求解全天144个时段的购电与储能调度方案。
+当选定时刻发布新的光伏预报后，固定已经执行的决策，以当前实际储电量为初始状态，更新光伏预测和联合场景，并重新求解尚未执行的时段。
+当日结束后，将实际日末储电量传递至下一日，按照相同过程完成334个调度日的滚动计算。
 
-\subsection{全年结果与预报更新价值}
+本文分别计算
+\(S_0\)、\(S_6\)、\(S_{12}\)、\(S_{18}\)、
+\(S_{6,12}\) 和 \(S_{\mathrm{all}}\) 六种策略。
+各策略采用相同的负荷预测、场景样本、初始储电量和结算规则，最终根据全年实际购电费用评价不同预报更新时刻的经济价值。
+具体求解过程见附录C。
 
-表~\ref{tab:q3_strategies}列出334天实际回测的结算费用。其中市场费用包含零点计划及调整后的净结算费用，紧急费用单列，总费用为二者之和。
+\subsection{求解结果与分析}
+
+\subsubsection{不同预报更新策略比较}
+
+对六种预报更新策略进行334天滚动回测，结果如表~\ref{tab:q3_strategies}和图~\ref{fig:q3_strategy_cost}所示。
+市场费用包括零点计划及日内调整产生的购电费用，紧急费用单独计算，总费用为二者之和。
+
+\vspace{-0.4em}
+\noindent
+{\centering
+\begin{minipage}[t]{0.49\textwidth}
+    \vspace{0pt}
+    \centering
+    \captionof{table}{六种预报更新策略的全年结算结果}
+    \label{tab:q3_strategies}
+    \scriptsize
+    \setlength{\tabcolsep}{2.1pt}
+    \renewcommand{\arraystretch}{1.12}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{ccccc}
+        \toprule
+        策略
+        & \shortstack{市场费用\\万元}
+        & \shortstack{紧急费用\\万元}
+        & \shortstack{总费用\\万元}
+        & \shortstack{紧急购电量\\万千瓦时} \\
+        \midrule
+        \(S_0\)             & 1405.53 & 80.61 & 1486.14 & 21.40 \\
+        \(S_6\)             & 1406.48 & 62.13 & 1468.61 & 16.36 \\
+        \(S_{12}\)          & 1398.02 & 67.55 & 1465.57 & 17.86 \\
+        \(S_{18}\)          & 1408.19 & 79.40 & 1487.59 & 21.18 \\
+        \(S_{6,12}\)        & 1393.54 & 58.23 & 1451.77 & 15.43 \\
+        \(S_{\mathrm{all}}\) & 1393.82 & 57.94
+        & \textbf{1451.76} & \textbf{15.42} \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+    \vspace{2.5em}
+    \centering
+    \includegraphics[width=\linewidth]
+    {../All_Code/Q3/Results/Pictures/q3_fig1_strategy_cost.pdf}
+    \captionof{figure}{不同预报更新策略的全年实际费用}
+    \label{fig:q3_strategy_cost}
+\end{minipage}
+\par}
+\vspace{0.8em}
+图中虚线表示问题二所得全年购电费用，仅用于前后两问的结果对照。
+六种日内更新策略的经济性主要依据其全年实际费用进行比较。
+全时点更新策略 \(S_{\mathrm{all}}\) 的全年总费用为
+\(1451.76\) 万元，相比仅采用零点预报的 \(S_0\) 节省
+\(34.37\) 万元，降幅为 \(2.31\%\)。
+紧急购电量由
+\(214020.65\,\mathrm{kWh}\) 降至
+\(154171.38\,\mathrm{kWh}\)，下降 \(27.96\%\)。
+因此，预报更新的主要收益来自减少预测偏差引起的高价紧急购电。
+
+预报价值并不随发布时间单调增加。
+单独采用 \(18{:}00\) 预报的 \(S_{18}\) 比 \(S_0\) 多支出约
+\(1.45\) 万元，而 \(S_{\mathrm{all}}\) 相比
+\(S_{6,12}\) 仅节省 \(56.68\) 元。
+这说明 \(6{:}00\) 和 \(12{:}00\) 发布的预报具有较高的调整价值，
+\(18{:}00\) 预报对全年费用的进一步改善十分有限。
+
+\subsubsection{指定日期购电结果}
+
+按照题目要求，选取2025年3月20日、6月21日、9月23日和12月21日，汇总零点计划购电量和日内调整后最终生效的购电量，结果如表~\ref{tab:q3_purchase_results}所示。
+
+\definecolor{headerblue}{RGB}{174,205,230}
+\definecolor{datablue}{RGB}{229,241,250}
 
 \begin{table}[H]
     \centering
-    \begin{tabular}{lrrrr}
-        \toprule
-        策略 & 市场费用/万元 & 紧急费用/万元 & 总费用/万元 & 紧急购电量/万千瓦时 \\
-        \midrule
-        \(S_0\) & 1405.53 & 80.61 & 1486.14 & 21.40 \\
-        \(S_6\) & 1406.48 & 62.13 & 1468.61 & 16.36 \\
-        \(S_{12}\) & 1398.02 & 67.55 & 1465.57 & 17.86 \\
-        \(S_{18}\) & 1408.19 & 79.40 & 1487.59 & 21.18 \\
-        \(S_{6,12}\) & 1393.54 & 58.23 & 1451.77 & 15.43 \\
-        \(S_{\mathrm{all}}\) & 1393.82 & 57.94 & \textbf{1451.76} & \textbf{15.42} \\
-        \bottomrule
-    \end{tabular}
-    \caption{六种预报更新策略的全年实际结算费用}
-    \label{tab:q3_strategies}
+    \caption{指定日期计划与调整购电结果}
+    \label{tab:q3_purchase_results}
+    \small
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{1.22}
+    \resizebox{0.92\textwidth}{!}{%
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        \rowcolor{headerblue}
+        \textbf{指标}
+        & \textbf{2025年3月20日}
+        & \textbf{2025年6月21日}
+        & \textbf{2025年9月23日}
+        & \textbf{2025年12月21日} \\
+        \hline
+        \(10{:}00\) 至 \(10{:}10\)
+        & 0.00 / 0.00 & 0.00 / 0.00 & 0.00 / 0.00 & 0.00 / 0.00 \\
+        \hline
+        \(12{:}00\) 至 \(12{:}10\)
+        & 632.84 / 545.67 & 0.00 / 0.00 & 469.53 / 401.01 & 1064.01 / 975.90 \\
+        \hline
+        \(14{:}00\) 至 \(14{:}10\)
+        & 0.00 / 0.00 & 0.00 / 0.00 & 0.00 / 0.00 & 0.00 / 0.00 \\
+        \hline
+        \(16{:}00\) 至 \(16{:}10\)
+        & 705.18 / 542.58 & 269.29 / 254.50 & 698.03 / 588.42 & 871.09 / 871.09 \\
+        \hline
+        \(18{:}00\) 至 \(18{:}10\)
+        & 708.30 / 708.30 & 381.56 / 381.56 & 813.72 / 813.72 & 719.97 / 719.97 \\
+        \hline
+        \(20{:}00\) 至 \(20{:}10\)
+        & 0.00 / 0.00 & 0.00 / 0.00 & 47.05 / 38.99 & 0.00 / 0.00 \\
+        \hline
+        \textbf{全天计划购电量}
+        & \cellcolor{datablue}\textbf{73765.55 / 68266.79}
+        & \cellcolor{datablue}\textbf{39524.69 / 39498.99}
+        & \cellcolor{datablue}\textbf{78594.08 / 73811.89}
+        & \cellcolor{datablue}\textbf{100632.36 / 98783.27} \\
+        \hline
+        \textbf{全天计划购电费}
+        & \cellcolor{datablue}\textbf{45123.05 / 43274.88}
+        & \cellcolor{datablue}\textbf{23354.81 / 23344.05}
+        & \cellcolor{datablue}\textbf{49839.75 / 48181.63}
+        & \cellcolor{datablue}\textbf{64502.74 / 63859.54} \\
+        \hline
+    \end{tabular}%
+    }
+
+    \par\smallskip
+    {\footnotesize
+    注：每格依次表示零点计划值和日内调整后的最终值。
+    指定时段购电量与全天计划购电量的单位为
+    \(\mathrm{kWh}\)，购电费用的单位为元，且不包含紧急购电费用。
+    }
 \end{table}
 
-全时点更新的\(S_{\mathrm{all}}\)全年总费用为1451.76万元，相比仅使用零点预报的\(S_0\)节省34.37万元，降幅为2.31\%。紧急购电量从214020.65千瓦时降至154171.38千瓦时，下降27.96\%。收益主要来自减少高价紧急购电，而不是简单压低零点计划。
+四个指定日期的购电计划均发生了不同程度的调整。
+其中，3月20日、9月23日和12月21日的全天计划购电量下降较为明显，6月21日的调整幅度较小。
+这说明更新后的光伏预报能够修正零点计划，但调整规模取决于当日预测变化和剩余时段的供需状态。
 
-预报更新的价值不随发布时间单调增加。只增加18点更新的\(S_{18}\)市场费用比\(S_0\)增加约2.66万元，紧急费用仅减少约1.21万元，最终多支出约1.45万元。相比之下，\(S_{\mathrm{all}}\)相对\(S_{6,12}\)仅节省56.68元。故在当前价格、预测和结算条件下，应优先使用6点和12点预报进行滚动调整，18点预报不宜作为常规更新动作。
+\subsubsection{指定日期储能与紧急购电结果}
 
-指定日期的结果也支持这一结论。\(S_{\mathrm{all}}\)相对\(S_0\)在3月20日节省1779.83元，在6月21日节省121.55元，在9月23日节省1658.10元，在12月21日则多支出466.05元。全年策略有效不意味着每一天均获益，个别日期仍可能因预报误差和重解决策受损。
+将每24个连续时段的充放电量分别汇总，得到四个指定日期的储能调度结果，如表~\ref{tab:q3_storage_results}所示。
 
-为检验结算口径的影响，以原计划购电费全额支付、调低部分另付半价违约金的更严格口径重新求解。\(S_{\mathrm{all}}\)相对\(S_0\)仍节省12.23万元，方向与主口径一致。六种策略均覆盖334天和48096个实际时段，独立复核的最大电量平衡残差为\(1.86\times10^{-9}\)千瓦时，未发现储电量越界、同时充放电或已执行时段被改写。因此，建议将6点和12点预报纳入滚动调整机制，18点预报仅在获得显著更高质量信息或规则发生变化时再重新评估。
+\begin{table}[H]
+    \centering
+    \caption{指定日期储能充放电量及首末储电量}
+    \label{tab:q3_storage_results}
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \renewcommand{\arraystretch}{1.22}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        \rowcolor{headerblue}
+        \textbf{时段}
+        & \textbf{2025.3.20}
+        & \textbf{2025.6.21}
+        & \textbf{2025.9.23}
+        & \textbf{2025.12.21} \\
+        \hline
+        \(0{:}00\) 至 \(4{:}00\)
+        & 5258.74 / 0.00
+        & 651.95 / 0.00
+        & 9000.00 / 0.00
+        & 9000.00 / 0.00 \\
+        \hline
+        \(4{:}00\) 至 \(8{:}00\)
+        & 835.59 / 6283.64
+        & 833.33 / 2069.66
+        & 1666.67 / 5771.14
+        & 2480.93 / 1492.89 \\
+        \hline
+        \(8{:}00\) 至 \(12{:}00\)
+        & 5633.35 / 2358.19
+        & 4685.74 / 0.00
+        & 5833.33 / 2868.86
+        & 5833.33 / 7740.49 \\
+        \hline
+        \(12{:}00\) 至 \(16{:}00\)
+        & 5610.49 / 467.51
+        & 6066.78 / 92.63
+        & 5370.24 / 434.89
+        & 8063.01 / 2691.52 \\
+        \hline
+        \(16{:}00\) 至 \(20{:}00\)
+        & 6.40 / 5690.31
+        & 49.07 / 5802.01
+        & 0.00 / 5863.65
+        & 35.99 / 5683.74 \\
+        \hline
+        \(20{:}00\) 至 \(24{:}00\)
+        & 4590.44 / 2967.71
+        & 1069.86 / 2854.65
+        & 125.72 / 2878.19
+        & 31.64 / 3001.73 \\
+        \hline
+        \rowcolor{datablue}
+        \(0{:}00\) 储电量
+        & 5317.13 & 2162.87 & 1200.00 & 1200.00 \\
+        \rowcolor{datablue}
+        \(24{:}00\) 储电量
+        & 5317.13 & 2162.87 & 1200.00 & 1200.00 \\
+        \hline
+    \end{tabular}%
+    }
+
+    \par\smallskip
+    {\footnotesize
+    注：单位为 \(\mathrm{kWh}\)，前六行每格依次表示充电量和放电量。
+    }
+\end{table}
+
+四个指定日期的日末储电量均回到当日期初水平，说明储能没有通过消耗期末存量获得表面费用优势。
+储能在不同四小时时段内交替充电和放电，使低价购电与光伏电量能够转移至后续供电时段。
+表中同一四小时时段同时出现充电量和放电量，表示该区间内不同十分钟时段分别执行充电和放电，并不表示同一时段同时充放电。
+
+真实负荷与光伏实现后，预测偏差造成的剩余供电缺口由紧急购电补足。
+将相邻的紧急购电时段合并后，得到表~\ref{tab:q3_emergency_results}。
+
+\begin{table}[H]
+    \centering
+    \caption{指定日期紧急购电结果}
+    \label{tab:q3_emergency_results}
+    \scriptsize
+    \setlength{\tabcolsep}{3pt}
+    \renewcommand{\arraystretch}{1.15}
+    \begin{tabularx}{\textwidth}
+    {|>{\centering\arraybackslash}p{0.045\textwidth}
+     |>{\centering\arraybackslash}X
+     |>{\centering\arraybackslash}X
+     |>{\centering\arraybackslash}X
+     |>{\centering\arraybackslash}X|}
+        \hline
+        \rowcolor{headerblue}
+        \textbf{序号}
+        & \textbf{2025年3月20日}
+        & \textbf{2025年6月21日}
+        & \textbf{2025年9月23日}
+        & \textbf{2025年12月21日} \\
+        \hline
+        1 & \(0{:}20\) 至 \(0{:}30\) / 22.976
+          & \(1{:}20\) 至 \(1{:}30\) / 37.900
+          & \(0{:}30\) 至 \(0{:}40\) / 7.512
+          & \(1{:}10\) 至 \(1{:}20\) / 2.901 \\
+        \hline
+        2 & \(1{:}00\) 至 \(1{:}30\) / 66.731
+          & \(3{:}10\) 至 \(3{:}30\) / 37.000
+          & \(5{:}40\) 至 \(5{:}50\) / 3.722
+          & \(3{:}30\) 至 \(3{:}50\) / 58.291 \\
+        \hline
+        3 & \(3{:}10\) 至 \(4{:}00\) / 52.938
+          & \(3{:}50\) 至 \(4{:}00\) / 14.630
+          & \(13{:}50\) 至 \(14{:}00\) / 0.350
+          & \(6{:}20\) 至 \(6{:}30\) / 16.078 \\
+        \hline
+        4 & \(4{:}50\) 至 \(5{:}20\) / 20.892
+          & \(6{:}50\) 至 \(7{:}00\) / 25.576
+          & \(14{:}20\) 至 \(14{:}30\) / 1.999
+          & \(9{:}40\) 至 \(9{:}50\) / 37.685 \\
+        \hline
+        5 & \(8{:}00\) 至 \(10{:}10\) / 434.677
+          &
+          & \(16{:}00\) 至 \(16{:}10\) / 1.014
+          & \(10{:}30\) 至 \(11{:}30\) / 335.935 \\
+        \hline
+        6 & \(10{:}50\) 至 \(12{:}00\) / 209.763
+          &
+          & \(20{:}10\) 至 \(20{:}30\) / 13.100
+          & \(12{:}50\) 至 \(13{:}00\) / 4.183 \\
+        \hline
+        7 & \(12{:}30\) 至 \(13{:}20\) / 178.978
+          &
+          & \(20{:}50\) 至 \(21{:}00\) / 10.798
+          & \(17{:}20\) 至 \(17{:}30\) / 23.991 \\
+        \hline
+        8 & \(13{:}50\) 至 \(14{:}10\) / 25.030
+          &
+          & \(22{:}20\) 至 \(22{:}30\) / 5.675
+          & \(18{:}10\) 至 \(19{:}00\) / 95.399 \\
+        \hline
+        9 & \(14{:}50\) 至 \(15{:}00\) / 0.720
+          & &
+          & \(19{:}20\) 至 \(19{:}30\) / 4.315 \\
+        \hline
+        10 & \(15{:}30\) 至 \(15{:}40\) / 4.947
+           & &
+           & \(19{:}40\) 至 \(20{:}00\) / 47.769 \\
+        \hline
+        11 & \(15{:}50\) 至 \(16{:}10\) / 35.978
+           & &
+           & \(21{:}50\) 至 \(22{:}00\) / 7.527 \\
+        \hline
+        12 & \(18{:}40\) 至 \(19{:}10\) / 53.947
+           & & & \\
+        \hline
+        13 & \(20{:}00\) 至 \(20{:}20\) / 39.914
+           & & & \\
+        \hline
+        14 & \(21{:}20\) 至 \(21{:}40\) / 7.899
+           & & & \\
+        \hline
+        15 & \(23{:}30\) 至 \(23{:}40\) / 17.374
+           & & & \\
+        \hline
+        \rowcolor{datablue}
+        \textbf{合计}
+        & \textbf{1172.766}
+        & \textbf{115.106}
+        & \textbf{44.171}
+        & \textbf{634.077} \\
+        \hline
+    \end{tabularx}
+
+    \par\smallskip
+    {\footnotesize
+    注：各单元格依次表示紧急购电时段和购电量，购电量单位为
+    \(\mathrm{kWh}\)，相邻的十分钟紧急购电时段已合并。
+    }
+\end{table}
+
+四个指定日期中，9月23日的紧急购电量最低，3月20日最高。
+紧急购电主要集中在实际供电缺口连续出现的时段，其中12月21日
+\(10{:}30\) 至 \(11{:}30\) 的紧急购电量达到
+\(335.935\,\mathrm{kWh}\)。
+
+全更新策略在3月20日、6月21日和9月23日分别节省
+\(1779.83\) 元、\(121.55\) 元和 \(1658.10\) 元，
+但在12月21日增加 \(466.05\) 元。
+这表明日内预报更新能够降低全年总体费用，但不能保证每个调度日均获得正收益。
+
+综合全年与指定日期结果，建议将
+\(6{:}00\) 和 \(12{:}00\) 发布的光伏预报纳入常规滚动调整。
+\(18{:}00\) 之后剩余调度时段较少，新增预报带来的紧急购电改善不足以稳定覆盖调整费用，因此不建议将其作为固定更新环节。

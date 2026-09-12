@@ -6,41 +6,37 @@
 此外，引入软终端项和年末 SOC 硬约束，保证储能调度的跨日平衡与全年连续性。
 
 \subsection{符号说明}
+% 表3：问题二剩余符号表
+\subsection{符号说明}
+
 \begin{table}[H]
     \centering
+    \caption{问题二符号说明}
     \label{tab:q2_symbols}
-    \begin{tabularx}{0.88\textwidth}
-    {@{}>{\centering\arraybackslash}p{0.22\textwidth}
-    >{\centering\arraybackslash}X@{}}
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabularx}{0.92\textwidth}{
+        >{\centering\arraybackslash}p{0.25\textwidth}
+        >{\centering\arraybackslash}X}
         \toprule
         符号 & 含义 \\
         \midrule
-        \(t,m\) & 时段编号与场景编号 \\
-        \(\pi_t\) & 第 \(t\) 时段的外网购电价格 \\
-        \(L_t,G_t\) & 第 \(t\) 时段的实际负荷电量与实际光伏发电量 \\
-        \(\hat L_t,\hat G_t\) & 第 \(t\) 时段的负荷与光伏点预测值 \\
-        \(L_t^m,G_t^m\) & 场景 \(m\) 下第 \(t\) 时段的负荷与光伏发电量 \\
-        \(x_t\) & 第 \(t\) 时段的计划购电量 \\
-        \(c_t\) & 第 \(t\) 时段由交流母线送入储能的充电量 \\
-        \(r_t\) & 第 \(t\) 时段由储能释放到交流母线的放电量 \\
-        \(s_t\) & 第 \(t\) 时段结束时的储电量 \\
-        \(y_t^m\) & 场景 \(m\) 下第 \(t\) 时段实际使用的计划购电量 \\
-        \(e_t^m\) & 场景 \(m\) 下第 \(t\) 时段的紧急购电量 \\
-        \(g_t^m\) & 场景 \(m\) 下第 \(t\) 时段的实际光伏利用量 \\
-        \(u_t^m\) & 场景 \(m\) 下第 \(t\) 时段未使用的计划购电量 \\
-        \(w_t^m\) & 场景 \(m\) 下第 \(t\) 时段的弃光量 \\
-        \(v_t^m\) & 场景 \(m\) 下第 \(t\) 时段的供给过剩弃电量 \\
-        \(C_m\) & 场景 \(m\) 下的总购电费用 \\
-        \(\zeta,q_m\) & CVaR中的风险阈值与超额费用变量 \\
-        \(\alpha,\beta\) & CVaR置信水平与风险权重 \\
-        \(\xi^+,\xi^-\) & 日末储电量相对期初的正负偏差 \\
-        \(\kappa_2\) & 软终端偏差惩罚系数 \\
+        $\widehat{L}_t,\ \widehat{G}_t$
+        & 第 $t$ 时段负荷与光伏发电量的点预测值 \\
+        $m,\ M$
+        & 场景编号与场景总数，$m=1,2,\ldots,M$ \\
+        $L_t^m,\ G_t^m$
+        & 场景 $m$ 下第 $t$ 时段的负荷与光伏发电量 \\
+        $C_m$
+        & 场景 $m$ 下的购电费用 \\
+        $\zeta$
+        & CVaR中的费用风险阈值 \\
+        $q_m$
+        & 场景 $m$ 下超过风险阈值的费用 \\
+        $\kappa_2$
+        & 软终端储电量偏差的惩罚系数 \\
         \bottomrule
     \end{tabularx}
-    \vspace{0.4em}
-    \caption{问题二符号说明}
 \end{table}
-
 
 \subsection{日前预测与联合场景构造}
 
@@ -237,131 +233,37 @@
 
 \subsection{滚动求解与参数标定}
 
-\subsubsection{逐日滚动求解}
-由于目标函数和约束条件均为线性关系，本文将每日调度模型整理为标准线性规划形式
-\begin{equation}
-    \min_{\boldsymbol z}\boldsymbol f^{\mathrm T}\boldsymbol z,
-    \qquad
-    \boldsymbol A_{\mathrm{eq}}\boldsymbol z=\boldsymbol b_{\mathrm{eq}},
-    \qquad
-    \boldsymbol A_{\mathrm{ub}}\boldsymbol z\leq\boldsymbol b_{\mathrm{ub}},
-    \qquad
-    \boldsymbol l\leq\boldsymbol z\leq\boldsymbol u
-    \label{eq:q2_standard_lp}
-\end{equation}
-其中，\(\boldsymbol z\) 为全部决策变量组成的向量，目标函数和约束条件分别写入对应的系数矩阵，各变量的运行范围由 \(\boldsymbol l\) 和 \(\boldsymbol u\) 给出。
+每日调度模型为线性规划模型。以2025年1月1日 0:00 的
+$6000\,\mathrm{kWh}$ 储电量为初始状态，逐日求解购电与储能方案，并将当日日末储电量传递为次日初始状态。模型采用稀疏矩阵存储，并通过 SciPy 调用 HiGHS 求解器；仅接受求解状态为最优且约束违反量不超过 $10^{-5}$ 的结果。模型的标准形式、规模及数值检验方法见附录~\ref{app:q2_solution_details}。
 
-在此基础上，本文以2025年1月1日 \(0{:}00\) 的
-\(6000\,\mathrm{kWh}\) 储电量为初始状态，逐日求解购电与储能调度方案。
-每日完成真实结算后，将日末储电量作为次日初始值，实现储能状态的连续传递。
-
-在 \(M=30\) 时，单日模型包含26530个变量、13105条等式约束和4350条不等式约束。
-为提高计算效率，本文采用稀疏矩阵存储约束，并通过SciPy调用HiGHS线性规划求解器。
-
-求解完成后，仅保留状态为最优，且等式最大残差和不等式最大违反量均不超过 \(10^{-5}\) 的解，用于当日结算和后续滚动。
-
-\subsubsection{真实逐时段结算}
-
-求得日前计划后，真实负荷与光伏数据仅用于逐时段结算，不再重新优化充电量 \(c_t\) 和放电量 \(r_t\)。
-设扣除储能放电后的净需求为 \(D_t\)，则各时段依次使用光伏、计划购电和紧急购电完成供电
+获得日前方案后，真实负荷与光伏数据仅用于逐时段结算，不再重新优化充、放电量。设扣除储能放电后的净需求为 $D_t$，则
 \begin{equation}
 \begin{aligned}
-    D_t&=\max\left\{0,L_t+c_t-r_t\right\},\\
-    g_t&=\min\left\{G_t,D_t\right\},\\
-    y_t&=\min\left\{x_t,D_t-g_t\right\},\\
-    e_t&=\max\left\{0,D_t-g_t-y_t\right\}
+    D_t&=\max\{0,L_t+c_t-r_t\},\\
+    g_t&=\min\{G_t,D_t\},\\
+    y_t&=\min\{x_t,D_t-g_t\},\\
+    e_t&=\max\{0,D_t-g_t-y_t\}.
 \end{aligned}
 \label{eq:q2_actual_settlement}
 \end{equation}
+各时段依次使用光伏、计划购电和紧急购电满足需求；未利用的光伏记为弃光，固定放电造成的多余供给记为过剩弃电。计划购电按申报量全额计费，紧急购电价格为对应时段电价的5倍。结算过程仅使用当前及此前已经实现的数据，因而不存在未来信息泄漏。
 
-未利用的光伏记为弃光。
-当固定放电量超过负荷与充电需求时，多余电量记为供给过剩弃电。
-计划购电按 \(x_t\) 全额计费，紧急购电按对应时段电价的5倍计费，实际费用不包含正则项和软终端惩罚项。
-结算过程仅使用当前及此前已经实现的数据，不读取后续时段信息。
+为避免正式报告期数据参与参数选择，本文将1月1日至14日设为预热期，1月15日至31日设为验证期，并将2月1日至12月31日作为正式报告期。以问题一所得储能边际价值的中位数
+$\kappa_{2,\mathrm{base}}=0.531667$
+为软终端系数的缩放基准，在验证期内对场景数、风险权重和软终端系数进行组合标定，具体参数范围及筛选方法见附录~\ref{app:q2_parameter_calibration}。
 
-\subsubsection{参数标定与求解}
-
-为避免正式报告期信息参与参数选择，本文将1月1日至14日设为预热期，将1月15日至31日设为参数验证期。
-2月1日至12月31日的数据仅用于正式滚动计算。
-
-取问题一所得储能边际价值的中位数作为软终端系数的缩放基准
-\[
-    \kappa_{2,\mathrm{base}}=0.531667
-\]
-该数值仅用于构造软终端系数的候选范围，最终取值仍由验证期计算结果确定。
-
-预热结束后，在相同的初始储电量、预测数据和结算规则下，对以下参数进行组合求解
-\[
-\begin{aligned}
-    M&\in\{10,20,30\},
-    \qquad
-    \lambda\in\{0.25,0.5,1,2\},
-    \qquad
-    \kappa_2=\lambda\kappa_{2,\mathrm{base}},\\
-    \beta&\in\{0,0.01,0.03,0.05,0.10,0.20,0.25,0.50\}
-\end{aligned}
-\]
-其中，\(\lambda\) 为软终端系数相对于基准值的倍数。
-三类参数组合后，共形成96组候选方案。
-
-记参数组合为
-\(\boldsymbol{\theta}=(M,\beta,\lambda)\)。
-为确定紧急购电费用的筛选上限，取
-\(\boldsymbol{\theta}_0=(20,0.25,1)\)
-作为基准组合。
-该组合在验证期内的总费用为 \(1075535.45\) 元，紧急购电费用为 \(18014.42\) 元。
-上述费用仅用于参数比较，不是最终模型的求解结果。
-
-随后对96组候选参数分别进行17天滚动求解。
-在紧急购电费用不高于基准组合的条件下，选择评价指标最小的参数组合
+最终选定参数为
 \begin{equation}
-\begin{aligned}
-    \boldsymbol{\theta}^{\ast}
-    =\arg\min_{\boldsymbol{\theta}}
-    \quad&
-    C_{\mathrm{val}}(\boldsymbol{\theta})
-    +
-    \kappa_{2,\mathrm{base}}
-    \max\left\{
-    0,
-    s_{\mathrm{beg}}-s_{\mathrm{end}}(\boldsymbol{\theta})
-    \right\}\\
-    \mathrm{s.t.}\quad&
-    C_{\mathrm{emg}}(\boldsymbol{\theta})
-    \leq
-    C_{\mathrm{emg}}(\boldsymbol{\theta}_0)
-\end{aligned}
-\label{eq:q2_parameter_selection}
-\end{equation}
-
-其中，期末储电量补偿项用于排除通过消耗储能获得表面费用优势的方案。
-96组候选参数的验证结果如图~\ref{fig:q2_cvar_frontier} 所示。
-图中各行对应不同的风险权重 \(\beta\)，各列对应场景数 \(M\) 与软终端倍数 \(\lambda\) 的组合。
-左图和右图的颜色分别表示验证期总费用与紧急购电费用，颜色越深表示相应费用越高。
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]
-    {../All_Code/Q2_yy/Results/Pictures/fig_q2_cvar_frontier.pdf}
-    \caption{验证期候选参数的费用与风险分布}
-    \label{fig:q2_cvar_frontier}
-\end{figure}
-
-候选参数在降低总费用和控制紧急购电风险之间表现出明显差异。
-部分组合具有较低的总费用，但其紧急购电费用超过基准组合，因而不满足筛选条件。
-红色星号表示在紧急购电费用限制下评价指标最小的参数组合。
-最终得到
-\[
-    M^{\ast}=30,\qquad
-    \beta^{\ast}=0.20,\qquad
-    \lambda^{\ast}=1,\qquad
-    \kappa_2^{\ast}
-    =\lambda^{\ast}\kappa_{2,\mathrm{base}}
-    =0.531667
+    M^\ast=30,\qquad
+    \beta^\ast=0.20,\qquad
+    \lambda^\ast=1,\qquad
+    \kappa_2^\ast=0.531667.
     \label{eq:q2_optimal_parameters}
-\]
-该组合的验证期总费用为 \(1016195.38\) 元，紧急购电费用为 \(16517.07\) 元，期末储电量为 \(6000\,\mathrm{kWh}\)。
-参数于1月31日确定，并在正式报告期的滚动求解中保持不变。
+\end{equation}
+该组合在验证期的总费用为 $1016195.38$ 元，紧急购电费用为
+$16517.07$ 元，较基准组合分别降低 $59340.07$ 元和
+$1497.35$ 元，且期末储电量恢复至 $6000\,\mathrm{kWh}$。参数于1月31日确定，并在正式报告期内保持不变。
+
 
 \subsection{求解结果与分析}
 

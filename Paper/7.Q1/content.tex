@@ -42,33 +42,24 @@
 除电价和效率参数外，后续模型中的负荷、光伏、购电、充放电及储电量均以 \(\mathrm{kWh}\) 为单位。
 问题一使用的主要符号如下表所示。
 
-\begin{table}[H]
+% 表2：问题一剩余符号表
+\begin{table}[htbp]
     \centering
+    \caption{问题一其余符号说明}
     \label{tab:q1_symbols}
-    \begin{tabularx}{0.88\textwidth}
-    {@{}>{\centering\arraybackslash}p{0.22\textwidth}
-    >{\centering\arraybackslash}X@{}}
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabularx}{0.92\textwidth}{
+        >{\centering\arraybackslash}p{0.25\textwidth}
+        >{\centering\arraybackslash}X}
         \toprule
         符号 & 含义 \\
         \midrule
-        \(t\) & 时段编号，\(t=1,2,\ldots,T\) \\
-        \(\pi_t\) & 第 \(t\) 时段的外网购电价格 \\
-        \(L_t\) & 第 \(t\) 时段的小区负荷电量 \\
-        \(G_t\) & 第 \(t\) 时段的光伏预测发电量 \\
-        \(x_t\) & 第 \(t\) 时段的计划购电量 \\
-        \(c_t\) & 第 \(t\) 时段由交流母线送入储能的充电量 \\
-        \(r_t\) & 第 \(t\) 时段由储能释放到交流母线的放电量 \\
-        \(w_t\) & 第 \(t\) 时段未被利用的光伏电量 \\
-        \(s_t\) & 第 \(t\) 时段结束时的储电量 \\
-        \(\eta_c,\eta_r\) & 储能的充电效率和放电效率 \\
-        \(S_{\min},S_{\max}\) & 储电量运行下限和上限 \\
-        \(S_0\) & 储能在 \(0{:}00\) 时的初始储电量 \\
+        $w_t$ & 第 $t$ 时段未被利用的光伏电量 \\
+        $S_{\min},\ S_{\max}$ & 储电量的运行下限与运行上限 \\
+        $S_0$ & 储能在当日 0:00 时的初始储电量 \\
         \bottomrule
     \end{tabularx}
-    \vspace{0.4em}
-  \caption{问题一符号说明}
 \end{table}
-
 \subsection{模型建立}
 
 \subsubsection{决策变量与目标函数}
@@ -101,7 +92,7 @@
 
     \item \textbf{储能状态转移约束}
 
-  根据附录 1，充放电效率均取 0.9，储电量状态转移方程为：
+根据附录~\ref{app:storage_parameters}，充、放电效率均取 $0.9$，储电量状态转移方程为:
   \begin{equation}
       s_t
       =
@@ -338,38 +329,19 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
 
 \subsection{模型检验}
 
-\subsubsection{约束满足情况}
+将最优调度结果代回电量平衡方程和储能状态转移方程，得到144个时段的最大绝对残差分别为
+$2.27\times10^{-13}\,\mathrm{kWh}$ 和
+$8.31\times10^{-13}\,\mathrm{kWh}$，
+表明数值解在计算精度范围内满足等式约束。
 
-将最终调度结果代回电量平衡与储能状态转移方程，
-分别计算残差
-\begin{equation}
-\begin{aligned}
-    e_t^{\mathrm{bal}}
-    &=x_t^\ast+G_t-w_t^\ast+r_t^\ast-L_t-c_t^\ast,\\
-    e_t^{\mathrm{sto}}
-    &=s_t^\ast-s_{t-1}^\ast
-      -\eta_c c_t^\ast+\frac{r_t^\ast}{\eta_r}
-\end{aligned}
-\label{eq:q1_constraint_residuals}
-\end{equation}
-144个时段的最大绝对残差分别为
-\(2.27\times10^{-13}\,\mathrm{kWh}\) 和
-\(8.31\times10^{-13}\,\mathrm{kWh}\)，
-表明数值解在计算精度范围内满足两类等式约束。
+全天储电量变化如图~\ref{fig:q1_soc}所示。储电量始终位于
+$1200$--$10800\,\mathrm{kWh}$ 的允许区间内，
+对应荷电状态（SOC）为 $10\%$--$90\%$；
+日初和日末储电量均为 $6000\,\mathrm{kWh}$，
+满足日循环约束。单时段最大充电量和放电量分别为
+$833.3333\,\mathrm{kWh}$ 和 $715.6530\,\mathrm{kWh}$，
+均未超过功率限制。
 
-同时设定以储电量占额定容量的比例表示荷电状态：
-\begin{equation}
-    \mathrm{SOC}_t
-    =
-    \frac{s_t^\ast}{12000}\times100\%.
-    \label{eq:q1_soc_conversion}
-\end{equation}
-经计算，全天储电量的最小值和最大值分别为
-\(1200\,\mathrm{kWh}\) 和 \(10800\,\mathrm{kWh}\)，
-对应 SOC 为 \(10\%\) 和 \(90\%\)，满足运行上下界。
-日初和日末储电量均为 \(6000\,\mathrm{kWh}\)，
-对应 SOC 均为 \(50\%\)，满足日循环约束。
-为进一步反映储能在各时段的充放电过程及储电状态变化，将全天储电量变化曲线绘制如下图所示：
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.65\textwidth]
@@ -378,62 +350,15 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
     \label{fig:q1_soc}
 \end{figure}
 
-由图 6 可见，储电量呈现明显的阶段性变化，并在部分时段达到设定的运行边界，但整个调度周期内均未发生越界。
-同时，单时段最大充电量和放电量分别为
-\(833.3333\,\mathrm{kWh}\) 和 \(715.6530\,\mathrm{kWh}\)，
-均未超过充放电上限。
-购电量与弃光量也满足相应边界，
-第二阶段费用较第一阶段最优值增加约
-\(10^{-4}\) 元，未超过设定容差。
+由图~\ref{fig:q1_soc}可见，储电量呈阶段性变化，并在部分时段达到运行边界，但整个调度周期内均未越界。进一步逐时段检查得到
+$
+    \max_{1\leq t\leq T}\left(c_t^\ast r_t^\ast\right)=0,
+$
+说明最终方案不存在同时充放电现象。
 
-\subsubsection{混合整数辅助模型检验}
-对最终方案进行逐时段检查，得到$\max_{1\leq t\leq T}
-    \left(c_t^\ast r_t^\ast\right)=0$。
-为检验禁止同时充放电后能否保持原有购电费用，本文建立了混合整数线性规划辅助模型（MLP）。
-
-引入二进制变量 $b_t^{c}$ 和 $b_t^{r}$，
-分别表示第 $t$ 时段充电通道和放电通道是否启用，并设置如下约束，从模型结构上保证充放电互斥：
-\begin{equation}
-\begin{aligned}
-    c_t&\leq q_{\max}b_t^{\mathrm c},\\
-    r_t&\leq q_{\max}b_t^{\mathrm r},\\
-    b_t^{\mathrm c}+b_t^{\mathrm r}&\leq1,
-    \qquad b_t^{\mathrm c},b_t^{\mathrm r}\in\{0,1\}.
-\end{aligned}
-\label{eq:q1_milp_exclusivity}
-\end{equation}
-
-辅助模型保留原有电量平衡、储能状态转移、运行边界和日循环约束，
-并要求购电费用不超过 \(C_1^\ast+\varepsilon\)。
-设 \(v_t^{\mathrm c}\) 和 \(v_t^{\mathrm r}\) 为二进制状态变化变量，
-通过以下线性约束表示相邻状态差的绝对值
-\begin{equation}
-\begin{aligned}
-    v_t^j&\geq b_t^j-b_{t-1}^j,\\
-    v_t^j&\geq b_{t-1}^j-b_t^j,
-    \qquad j\in\{\mathrm c,\mathrm r\},
-    \quad t=2,\ldots,T.
-\end{aligned}
-\label{eq:q1_switch_linearization}
-\end{equation}
-相应目标函数为
-\begin{equation}
-    \min
-    \sum_{t=2}^{T}
-    \left(v_t^{\mathrm c}+v_t^{\mathrm r}\right)
-    +
-    10^{-6}\sum_{t=1}^{T}
-    \left(b_t^{\mathrm c}+b_t^{\mathrm r}\right).
-    \label{eq:q1_auxiliary_objective}
-\end{equation}
-其中，第一项减少通道状态变化，
-第二项以较小权重抑制不必要的通道启用。
-
-采用 HiGHS 求解该混合整数模型，得到辅助方案购电费用为
-\(35126.948689\) 元，与第一阶段最低费用之差约为
-\(10^{-4}\) 元。
-方案中充电、放电分别发生于 45 个和 37 个时段，通道启用状态共变化 12 次。
-
+为验证加入充放电互斥约束后仍能保持原有经济性，本文进一步建立混合整数线性规划辅助模型（MILP），具体形式见附录~\ref{app:q1_milp_check}。辅助模型得到的购电费用为
+$35126.948689$ 元，与原最低费用之差约为
+$10^{-4}$ 元；其中充电和放电分别发生于45个和37个时段，通道启用状态共变化12次。由此表明，所得调度方案在满足全部运行约束的同时，兼具充放电互斥性与经济最优性。
 
 \subsection{储能边际价值分析}
 
@@ -454,7 +379,7 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.7\textwidth]
+    \includegraphics[width=0.65\textwidth]
     {../All_Code/Q1/Results/Pictures/q1_fig4_marginal_value.pdf}
     \caption{分时电价与储能边际价值的日内变化}
     \label{fig:q1_marginal_value}

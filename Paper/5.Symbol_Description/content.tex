@@ -1,16 +1,27 @@
 % !TeX root = ../main.tex
-\section{符号说明}
-\begin{table}[htbp]
-  \centering
-  \caption{主要符号及其含义}\label{tab:notation}
-  \begin{tabularx}{0.95\linewidth}{cXc}
-    \toprule
-    符号 & 含义 & 单位 \\
-    \midrule
-    $n$ & 【样本数量】 & 【无量纲】 \\
-    $x_i$ & 【第 $i$ 个决策变量】 & 【填写单位】 \\
-    $y_i$ & 【第 $i$ 个观测值】 & 【填写单位】 \\
-    $\theta$ & 【待估计参数】 & 【填写单位】 \\
-    \bottomrule
-  \end{tabularx}
+% 表1：总符号表（反复使用的符号及各问的重要符号）
+\section{主要符号说明}
+
+\begin{table}[H]
+    \centering
+    \caption{通用符号说明}
+    \label{tab:main_symbols}
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabularx}{0.92\textwidth}{
+        >{\centering\arraybackslash}p{0.25\textwidth}
+        >{\centering\arraybackslash}X}
+        \toprule
+        符号 & 含义 \\
+        \midrule
+        $t$ & 时段编号，$t=1,2,\ldots,T$ \\
+        $\pi_t$ & 第 $t$ 时段的外网购电价格 \\
+        $L_t,\ G_t$ & 第 $t$ 时段的负荷电量与光伏发电量 \\
+        $x_t$ & 第 $t$ 时段的计划购电量 \\
+        $c_t$ & 第 $t$ 时段由交流母线送入储能的充电量 \\
+        $r_t$ & 第 $t$ 时段由储能释放到交流母线的放电量 \\
+        $s_t$ & 第 $t$ 时段结束时的储电量 \\
+        $\eta_c,\ \eta_r$ & 储能的充电效率与放电效率 \\
+        $\alpha,\ \beta$ & CVaR置信水平与风险权重 \\
+        \bottomrule
+    \end{tabularx}
 \end{table}
