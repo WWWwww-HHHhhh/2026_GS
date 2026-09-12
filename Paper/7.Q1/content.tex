@@ -5,10 +5,10 @@
 模型以各时段的外网购电量、储能充放电量、储电量和弃光量为决策变量，以全天计划购电费用最小为目标，并考虑微网能量平衡、储能状态转移等约束(6.4.2)。
 求解后得到 144 个时段的调度结果，并汇总为六个四小时时段的充放电总量及全天购电量与购电费用。
 本文取充电效率与放电效率均为 \(0.9\)（单程效率）。
-若改按整体往返效率解释，结论不变，对照计算见附录。
+若改按整体往返效率解释，结论不变，对照计算见附录~\ref{app:q1_efficiency}。
 
 \subsection{输入数据特征分析}
-根据上文划分的144个时段数据，可以绘制出小区负荷、光伏预测功率、净负荷与分时电价的日内变化曲线。第 \(t\) 个时段对应的时刻为
+各时段对应的时刻为
 \begin{equation}
     \tau_t=t\Delta t,
     \qquad
@@ -26,15 +26,15 @@
     \label{eq:q1_net_load}
 \end{equation}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.65\textwidth]
-    {../All_Code/Q1/Results/Pictures/q1_fig1_timeseries.pdf}
-    \caption{问题一负荷、光伏预测、净负荷与电价的日内变化}
-\label{fig:q1_timeseries}
+    \includegraphics[width=0.8\textwidth]
+    {../All_Code/Q1/Results/Pictures/q1_fig_input_dispatch.pdf}
+    \caption{问题一日内输入特性与储能调度结果}
+    \label{fig:q1_input_dispatch}
 \end{figure}
 绘图时将负荷、光伏和净负荷功率统一换算为 \(\mathrm{MW}\)，电价仍以元/\(\mathrm{kWh}\) 表示。
-由图可见，中午光伏出力高于小区负荷，存在富余光伏。晚间光伏出力下降，而负荷和电价处于较高水平。
+由图~\ref{fig:q1_input_dispatch}(a) 可见，中午光伏出力高于小区负荷，存在富余光伏。晚间光伏出力下降，而负荷和电价处于较高水平。
 因此，我们初步判断可利用储能吸收中午的富余光伏，并在晚间释放，以减少高价时段的外网购电量。
 
 
@@ -101,7 +101,7 @@
 
     \item \textbf{储能状态转移约束}
 
-  根据附录 1，充放电效率均取 0.9，储电量状态转移方程为：
+  根据附件1，充放电效率均取 0.9，储电量状态转移方程为：
   \begin{equation}
       s_t
       =
@@ -144,60 +144,18 @@
 
 \subsubsection{第二阶段优化模型}
 
-第一阶段得到最低购电费用 \(C_1^*\)的最优解可能不唯一，其中部分方案存在不必要的充放电循环。
-为此，第二阶段保留原模型的全部约束，增加费用上限，并把目标换为储能总吞吐量：
-\begin{equation}
-    \min \sum_{t=1}^{T}\left(c_t+r_t\right)
-    \label{eq:q1_stage2}
-\end{equation}
-同时满足：
-\begin{equation}
-    \sum_{t=1}^{T}\pi_t x_t
-    \leq C_1^*+\varepsilon,
-    \qquad
-    \varepsilon=10^{-4}\,\text{元}
-    \label{eq:q1_cost_tolerance}
-\end{equation}
-由此得到购电费用最优且充放电过程更简洁的调度方案。
+第一阶段得到的最低购电费用 \(C_1^*\) 可能对应多个最优解，其中部分方案存在不必要的充放电循环。
+为此，第二阶段保留原模型的全部约束，以储能总吞吐量为目标，并要求购电费用不超过
+\(C_1^*+\varepsilon\)（\(\varepsilon=10^{-4}\) 元），
+从而得到购电费用最优且充放电过程更简洁的调度方案。
+该阶段的完整模型形式见附录~\ref{app:q1_lp}。
 
 \subsection{模型求解}
 
-\subsubsection{线性规划转换}
+上述模型的目标与约束均为线性关系，可整理为标准线性规划形式。
+\(T=144\) 时模型共包含 \(720\) 个连续决策变量；
+变量排列顺序、系数矩阵结构、约束条数与上下界设置见附录~\ref{app:q1_lp}。
 
-上述模型的目标函数及约束条件均为线性关系，本文将其转化为标准线性规划。按照购电量、充电量、放电量、弃光量和储电量的顺序，将决策变量排列为
-\begin{equation}
-    \boldsymbol{z}
-    =
-    \left(
-    x_1,\ldots,x_T,
-    c_1,\ldots,c_T,
-    r_1,\ldots,r_T,
-    w_1,\ldots,w_T,
-    s_1,\ldots,s_T
-    \right)^{\mathrm T}
-    \label{eq:q1_variable_vector}
-\end{equation}
-由于 \(T=144\)，模型共包含 \(720\) 个连续决策变量。
-
-将附件1中的电价、负荷电量和光伏预测发电量代入模型，整理为
-\begin{equation}
-\begin{aligned}
-    \min_{\boldsymbol z}\quad
-    &\boldsymbol f_1^{\mathrm T}\boldsymbol z,\\
-    \mathrm{s.t.}\quad
-    &\boldsymbol A_{\mathrm{eq}}\boldsymbol z
-    =\boldsymbol b_{\mathrm{eq}},\\
-    &\boldsymbol l\leq\boldsymbol z\leq\boldsymbol u
-\end{aligned}
-\label{eq:q1_standard_lp}
-\end{equation}
-其中，目标向量 \(\boldsymbol f_1\) 的前144个元素为各时段电价，其余元素为零。
-\(\boldsymbol A_{\mathrm{eq}}\) 由144条电量平衡约束、144条储能状态转移约束和1条末端储电量约束构成，共289行。
-右端向量 \(\boldsymbol b_{\mathrm{eq}}\) 由净负荷电量 \(L_t-G_t\) 和初末储电量条件确定。
-各变量的运行范围则通过上下界 \(\boldsymbol l,\boldsymbol u\) 设置。
-
-储能状态以 \(s_0=6000\,\mathrm{kWh}\) 为起点，通过相邻时段的状态转移连接全天调度，并以 \(s_T=6000\,\mathrm{kWh}\) 作为终端条件。
-据此构造的线性规划同时求解各时段的购电、充放电、弃光及储电量。
 \subsubsection{两阶段求解}
 
 第一阶段调用 HiGHS 求解购电费用最小化模型，同时得到各时段的购电量、充放电量、弃光量和储电量。最低购电费用为
@@ -208,14 +166,9 @@
     \label{eq:q1_stage1_result}
 \end{equation}
 
-随后保留原有约束，加入式 \eqref{eq:q1_cost_tolerance} 的费用上限，并将目标函数改为储能总充放电量最小，再次调用 HiGHS 求解。
-第二阶段得到最终调度方案
-\[
-\left\{
-x_t^\ast,c_t^\ast,r_t^\ast,w_t^\ast,s_t^\ast
-\right\}_{t=1}^{144}
-\]
-其中，\(s_t^\ast\) 是在电量平衡和储能状态转移约束下与其他变量同时求得的逐时段储电量。
+随后保留原有约束、加入容差 \(\varepsilon\) 的费用上限，并将目标函数改为储能总充放电量最小，再次调用 HiGHS 求解，
+得到最终调度方案 \(\{x_t^\ast,c_t^\ast,r_t^\ast,w_t^\ast,s_t^\ast\}_{t=1}^{144}\)，
+其中 \(s_t^\ast\) 是在电量平衡和储能状态转移约束下与其他变量同时求得的逐时段储电量。
 
 \subsection{求解结果与分析}
 
@@ -284,7 +237,7 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
     }
 \end{table}
 
-将每24个连续时段的充放电量分别求和，得到部分的结果，如下表所示（表中电量单位为kWh）：
+将每24个连续时段的充放电量分别求和，结果见表~\ref{tab:q1_storage_blocks}（表中电量单位为kWh）：
 
 \begin{table}[htbp]
     \centering
@@ -321,64 +274,26 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
     \end{tabular}
 \end{table}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\textwidth]
-    {../All_Code/Q1/Results/Pictures/q1_fig2_dispatch.pdf}
-    \caption{全天购电与储能充放电调度}
-    \label{fig:q1_dispatch}
-\end{figure}
-
-表4与图5进一步展示了储能的日内调度规律。
-在 \(0{:}00\) 至 \(4{:}00\) 的低价时段，储能集中充电。
-在 \(12{:}00\) 至 \(16{:}00\) 的光伏富余阶段，储能以充电为主。
-在 \(16{:}00\) 至 \(20{:}00\) 的用电高峰阶段。
-其余四小时区间虽然同时统计到充电量和放电量，
-但两者发生在不同的十分钟时段，不存在同一时段同时充放电的情况。
+表~\ref{tab:q1_storage_blocks} 与图~\ref{fig:q1_input_dispatch}(b) 进一步展示了储能的日内调度规律：
+在 \(0{:}00\) 至 \(4{:}00\) 的低价时段和 \(12{:}00\) 至 \(16{:}00\) 的光伏富余阶段，储能以充电为主；
+在 \(16{:}00\) 至 \(20{:}00\) 的用电高峰阶段转为放电，以减少高价时段的外网购电。
+其余四个区间虽同时统计到充电量与放电量，但两者位于不同的十分钟时段，不存在同一时段同时充放电的情况。
 
 \subsection{模型检验}
 
 \subsubsection{约束满足情况}
 
 将最终调度结果代回电量平衡与储能状态转移方程，
-分别计算残差
-\begin{equation}
-\begin{aligned}
-    e_t^{\mathrm{bal}}
-    &=x_t^\ast+G_t-w_t^\ast+r_t^\ast-L_t-c_t^\ast,\\
-    e_t^{\mathrm{sto}}
-    &=s_t^\ast-s_{t-1}^\ast
-      -\eta_c c_t^\ast+\frac{r_t^\ast}{\eta_r}
-\end{aligned}
-\label{eq:q1_constraint_residuals}
-\end{equation}
 144个时段的最大绝对残差分别为
 \(2.27\times10^{-13}\,\mathrm{kWh}\) 和
 \(8.31\times10^{-13}\,\mathrm{kWh}\)，
-表明数值解在计算精度范围内满足两类等式约束。
+表明数值解在计算精度范围内满足两类等式约束；残差的定义与逐项核对见附录~\ref{app:q1_checks}。
 
-同时设定以储电量占额定容量的比例表示荷电状态：
-\begin{equation}
-    \mathrm{SOC}_t
-    =
-    \frac{s_t^\ast}{12000}\times100\%.
-    \label{eq:q1_soc_conversion}
-\end{equation}
-经计算，全天储电量的最小值和最大值分别为
-\(1200\,\mathrm{kWh}\) 和 \(10800\,\mathrm{kWh}\)，
-对应 SOC 为 \(10\%\) 和 \(90\%\)，满足运行上下界。
-日初和日末储电量均为 \(6000\,\mathrm{kWh}\)，
-对应 SOC 均为 \(50\%\)，满足日循环约束。
-为进一步反映储能在各时段的充放电过程及储电状态变化，将全天储电量变化曲线绘制如下图所示：
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.65\textwidth]
-    {../All_Code/Q1/Results/Pictures/q1_fig3_soc.pdf}
-    \caption{全天储电量变化及运行边界}
-    \label{fig:q1_soc}
-\end{figure}
-
-由图 6 可见，储电量呈现明显的阶段性变化，并在部分时段达到设定的运行边界，但整个调度周期内均未发生越界。
+荷电状态按储电量占额定容量的比例定义，全天储电量的最小值与最大值分别为
+\(1200\,\mathrm{kWh}\) 和 \(10800\,\mathrm{kWh}\)（对应 SOC \(10\%\) 与 \(90\%\)），
+日初和日末均为 \(6000\,\mathrm{kWh}\)（SOC \(50\%\)），满足运行上下界与日循环约束。
+为进一步反映储能在各时段的充放电过程及储电状态变化，全天储电量变化曲线见附录~\ref{app:q1_soc}。
+储电量呈现明显的阶段性变化，并在部分时段达到设定的运行边界，但整个调度周期内均未发生越界。
 同时，单时段最大充电量和放电量分别为
 \(833.3333\,\mathrm{kWh}\) 和 \(715.6530\,\mathrm{kWh}\)，
 均未超过充放电上限。
@@ -388,46 +303,10 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
 
 \subsubsection{混合整数辅助模型检验}
 对最终方案进行逐时段检查，得到$\max_{1\leq t\leq T}
-    \left(c_t^\ast r_t^\ast\right)=0$。
-为检验禁止同时充放电后能否保持原有购电费用，本文建立了混合整数线性规划辅助模型（MLP）。
+    \left(c_t^\ast r_t^\ast\right)=0$，即方案中不存在同时充放电。
+为检验显式施加充放电互斥约束后能否保持原有购电费用，本文进一步建立混合整数线性规划辅助模型（MILP），其互斥约束、状态变化线性化与目标函数见附录~\ref{app:q1_milp}。
 
-引入二进制变量 $b_t^{c}$ 和 $b_t^{r}$，
-分别表示第 $t$ 时段充电通道和放电通道是否启用，并设置如下约束，从模型结构上保证充放电互斥：
-\begin{equation}
-\begin{aligned}
-    c_t&\leq q_{\max}b_t^{\mathrm c},\\
-    r_t&\leq q_{\max}b_t^{\mathrm r},\\
-    b_t^{\mathrm c}+b_t^{\mathrm r}&\leq1,
-    \qquad b_t^{\mathrm c},b_t^{\mathrm r}\in\{0,1\}.
-\end{aligned}
-\label{eq:q1_milp_exclusivity}
-\end{equation}
 
-辅助模型保留原有电量平衡、储能状态转移、运行边界和日循环约束，
-并要求购电费用不超过 \(C_1^\ast+\varepsilon\)。
-设 \(v_t^{\mathrm c}\) 和 \(v_t^{\mathrm r}\) 为二进制状态变化变量，
-通过以下线性约束表示相邻状态差的绝对值
-\begin{equation}
-\begin{aligned}
-    v_t^j&\geq b_t^j-b_{t-1}^j,\\
-    v_t^j&\geq b_{t-1}^j-b_t^j,
-    \qquad j\in\{\mathrm c,\mathrm r\},
-    \quad t=2,\ldots,T.
-\end{aligned}
-\label{eq:q1_switch_linearization}
-\end{equation}
-相应目标函数为
-\begin{equation}
-    \min
-    \sum_{t=2}^{T}
-    \left(v_t^{\mathrm c}+v_t^{\mathrm r}\right)
-    +
-    10^{-6}\sum_{t=1}^{T}
-    \left(b_t^{\mathrm c}+b_t^{\mathrm r}\right).
-    \label{eq:q1_auxiliary_objective}
-\end{equation}
-其中，第一项减少通道状态变化，
-第二项以较小权重抑制不必要的通道启用。
 
 采用 HiGHS 求解该混合整数模型，得到辅助方案购电费用为
 \(35126.948689\) 元，与第一阶段最低费用之差约为
@@ -446,16 +325,9 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
 该指标表示在第 \(t\) 个时段增加单位可用储电量时，
 最低购电费用的局部减少量。
 
-如图~\ref{fig:q1_marginal_value} 所示，储能边际价值随电价上升呈明显的分段升高：低电价时段较低，晚间高电价阶段显著抬升，
+储能边际价值随电价上升呈明显的分段升高：低电价时段较低，晚间高电价阶段显著抬升，
 说明此时储能中的电量可替代价格较高的外网购电。
 全天储能边际价值介于 \(0.4711\) 至 \(1.1305\) 元/\(\mathrm{kWh}\) 之间，
 中位数为 \(0.5317\) 元/\(\mathrm{kWh}\)。
-因此，储能调度需同时考虑当前电价与后续用电需求。
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.7\textwidth]
-    {../All_Code/Q1/Results/Pictures/q1_fig4_marginal_value.pdf}
-    \caption{分时电价与储能边际价值的日内变化}
-    \label{fig:q1_marginal_value}
-\end{figure}
+因此，储能调度需同时考虑当前电价与后续用电需求；
+储能边际价值与电价的逐点对应关系见附录~\ref{app:q1_marginal}。

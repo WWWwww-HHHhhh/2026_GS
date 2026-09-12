@@ -156,3 +156,369 @@
 
 此外，30日滚动残差库对极端天气和长期季节变化的覆盖能力有限。
 后续可在严格保持因果性的前提下扩大历史残差窗口，增加极端残差的抽样权重，或引入日内滚动修正机制，以提高场景覆盖能力并减少供需偏差造成的额外成本。
+
+\section{问题一第二阶段模型与标准线性规划形式}
+\label{app:q1_lp}
+
+\subsection{第二阶段优化模型}
+
+第一阶段以购电费用最小为目标，其最优解可能不唯一，部分方案存在不必要的充放电循环。
+第二阶段保留第一阶段的全部约束，以储能总吞吐量为目标
+\begin{equation}
+    \min \sum_{t=1}^{T}\left(c_t+r_t\right),
+    \label{eq:app_q1_stage2}
+\end{equation}
+并要求购电费用不超过第一阶段最优值加容差
+\begin{equation}
+    \sum_{t=1}^{T}\pi_t x_t
+    \leq C_1^*+\varepsilon,
+    \qquad
+    \varepsilon=10^{-4}\,\text{元}.
+    \label{eq:app_q1_cost_tolerance}
+\end{equation}
+由此得到购电费用最优且充放电过程更简洁的调度方案。
+
+\subsection{标准线性规划形式}
+
+按照购电量、充电量、放电量、弃光量和储电量的顺序排列决策变量
+\begin{equation}
+    \boldsymbol{z}
+    =
+    \left(
+    x_1,\ldots,x_T,
+    c_1,\ldots,c_T,
+    r_1,\ldots,r_T,
+    w_1,\ldots,w_T,
+    s_1,\ldots,s_T
+    \right)^{\mathrm T},
+    \label{eq:app_q1_variable_vector}
+\end{equation}
+由于 \(T=144\)，模型共包含 \(720\) 个连续决策变量。
+
+将附件1中的电价、负荷电量和光伏预测发电量代入模型，整理为
+\begin{equation}
+\begin{aligned}
+    \min_{\boldsymbol z}\quad
+    &\boldsymbol f_1^{\mathrm T}\boldsymbol z,\\
+    \mathrm{s.t.}\quad
+    &\boldsymbol A_{\mathrm{eq}}\boldsymbol z
+    =\boldsymbol b_{\mathrm{eq}},\\
+    &\boldsymbol l\leq\boldsymbol z\leq\boldsymbol u,
+\end{aligned}
+\label{eq:app_q1_standard_lp}
+\end{equation}
+其中目标向量 \(\boldsymbol f_1\) 的前144个元素为各时段电价，其余元素为零；
+\(\boldsymbol A_{\mathrm{eq}}\) 由144条电量平衡约束、144条储能状态转移约束和1条末端储电量约束构成，共289行；
+右端向量 \(\boldsymbol b_{\mathrm{eq}}\) 由净负荷电量 \(L_t-G_t\) 和初末储电量条件确定；
+各变量的运行范围通过上下界 \(\boldsymbol l,\boldsymbol u\) 设置。
+
+储能状态以 \(s_0=6000\,\mathrm{kWh}\) 为起点，通过相邻时段的状态转移连接全天调度，
+并以 \(s_T=6000\,\mathrm{kWh}\) 作为终端条件。
+两个阶段均整理为标准线性规划形式后调用 HiGHS 求解。
+
+\section{问题二预测特征与参数标定细节}
+\label{app:q2_calibration}
+
+\subsection{预测特征与评价指标}
+
+负荷预测引入时段、星期、历史滞后及滚动统计特征，光伏预测引入时段、季节及历史出力特征。
+候选模型以加权绝对百分比误差（WAPE）作为选择指标，其定义为
+\begin{equation}
+    \operatorname{WAPE}
+    =
+    \frac{\displaystyle\sum_{t=1}^{T}
+    \left|z_t-\hat z_t\right|}
+    {\displaystyle\sum_{t=1}^{T}\left|z_t\right|}.
+    \label{eq:app_q2_wape}
+\end{equation}
+
+\subsection{候选参数集合}
+
+预热结束后，在相同的初始储电量、预测数据与结算规则下，
+对场景数 \(M\)、软终端倍数 \(\lambda\) 与风险权重 \(\beta\) 的组合进行求解：
+\begin{equation}
+\begin{aligned}
+    M&\in\{10,20,30\},
+    \qquad
+    \lambda\in\{0.25,0.5,1,2\},
+    \qquad
+    \kappa_2=\lambda\kappa_{2,\mathrm{base}},\\
+    \beta&\in\{0,0.01,0.03,0.05,0.10,0.20,0.25,0.50\},
+\end{aligned}
+\label{eq:app_q2_parameter_grid}
+\end{equation}
+其中 \(\lambda\) 为软终端系数相对于基准值的倍数，三类参数共形成96组候选方案。
+
+\subsection{筛选准则}
+
+记参数组合为 \(\boldsymbol{\theta}=(M,\beta,\lambda)\)。
+在紧急购电费用不高于基准组合 \(\boldsymbol{\theta}_0=(20,0.25,1)\) 的条件下，
+选取评价指标最小的组合
+\begin{equation}
+\begin{aligned}
+    \boldsymbol{\theta}^{\ast}
+    =\arg\min_{\boldsymbol{\theta}}
+    \quad&
+    C_{\mathrm{val}}(\boldsymbol{\theta})
+    +
+    \kappa_{2,\mathrm{base}}
+    \max\left\{
+    0,
+    s_{\mathrm{beg}}-s_{\mathrm{end}}(\boldsymbol{\theta})
+    \right\}\\
+    \mathrm{s.t.}\quad&
+    C_{\mathrm{emg}}(\boldsymbol{\theta})
+    \leq
+    C_{\mathrm{emg}}(\boldsymbol{\theta}_0),
+\end{aligned}
+\label{eq:app_q2_parameter_selection}
+\end{equation}
+其中期末储电量补偿项用于排除靠消耗储能取得表面费用优势的方案。
+
+\subsection{CVaR 的线性化}
+
+为将目标函数中的条件风险价值写成线性形式，引入非负超额费用变量 \(q_m\)，并设置
+\begin{equation}
+    q_m\geq C_m-\zeta,
+    \qquad
+    q_m\geq0,
+    \label{eq:app_q2_cvar_linearization}
+\end{equation}
+其中 \(C_m\) 为场景 \(m\) 下的购电费用，\(\zeta\) 为费用分布的风险阈值。
+
+\section{问题一混合整数辅助模型检验}
+\label{app:q1_milp}
+
+引入二进制变量 \(b_t^{\mathrm c}\) 和 \(b_t^{\mathrm r}\)，
+分别表示第 \(t\) 时段充电通道和放电通道是否启用，并设置如下约束，从模型结构上保证充放电互斥：
+\begin{equation}
+\begin{aligned}
+    c_t&\leq q_{\max}b_t^{\mathrm c},\\
+    r_t&\leq q_{\max}b_t^{\mathrm r},\\
+    b_t^{\mathrm c}+b_t^{\mathrm r}&\leq1,
+    \qquad b_t^{\mathrm c},b_t^{\mathrm r}\in\{0,1\}.
+\end{aligned}
+\label{eq:app_q1_milp_exclusivity}
+\end{equation}
+
+辅助模型保留原有电量平衡、储能状态转移、运行边界和日循环约束，
+并要求购电费用不超过 \(C_1^\ast+\varepsilon\)。
+设 \(v_t^{\mathrm c}\) 和 \(v_t^{\mathrm r}\) 为二进制状态变化变量，
+通过以下线性约束表示相邻状态差的绝对值
+\begin{equation}
+\begin{aligned}
+    v_t^j&\geq b_t^j-b_{t-1}^j,\\
+    v_t^j&\geq b_{t-1}^j-b_t^j,
+    \qquad j\in\{\mathrm c,\mathrm r\},
+    \quad t=2,\ldots,T.
+\end{aligned}
+\label{eq:app_q1_switch_linearization}
+\end{equation}
+相应目标函数为
+\begin{equation}
+    \min
+    \sum_{t=2}^{T}
+    \left(v_t^{\mathrm c}+v_t^{\mathrm r}\right)
+    +
+    10^{-6}\sum_{t=1}^{T}
+    \left(b_t^{\mathrm c}+b_t^{\mathrm r}\right),
+    \label{eq:app_q1_auxiliary_objective}
+\end{equation}
+其中第一项减少通道状态变化，第二项以较小权重抑制不必要的通道启用。
+该辅助模型由 HiGHS 求解，正文给出其费用与通道状态变化次数的对比结果。
+
+\section{问题一储电量轨迹与运行边界}
+\label{app:q1_soc}
+
+全天储电量变化及运行边界如图~\ref{fig:q1_soc} 所示。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]
+    {../All_Code/Q1/Results/Pictures/q1_fig3_soc.pdf}
+    \caption{全天储电量变化及运行边界}
+    \label{fig:q1_soc}
+\end{figure}
+
+储电量呈现明显的阶段性变化，并在部分时段达到设定的运行边界，
+但整个调度周期内均未发生越界。
+
+\section{问题一储能边际价值分布}
+\label{app:q1_marginal}
+
+储能边际价值与电价的逐点对应关系如图~\ref{fig:q1_marginal_value} 所示。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]
+    {../All_Code/Q1/Results/Pictures/q1_fig4_marginal_value.pdf}
+    \caption{分时电价与储能边际价值的日内变化}
+    \label{fig:q1_marginal_value}
+\end{figure}
+
+图中散点按时刻着色，并给出 \(v=\pi_t\) 与 \(v=0.9\pi_t\) 两条参考线；
+偏离参考线的点对应储能状态触及上下限、影子价格被截断的时段。
+
+\section{问题二典型日期结算与储能调度明细}
+\label{app:q2_typical_day}
+
+\definecolor{headerblue}{RGB}{174,205,230}
+\definecolor{datablue}{RGB}{229,241,250}
+
+\subsection{代表日计划购电与实际结算}
+
+2025年6月1日代表日的十分钟结算结果按小时汇总如图~\ref{fig:q2_plan_settlement} 所示。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]
+    {../All_Code/Q2_yy/Results/Pictures/fig_q2_plan_settlement.pdf}
+    \caption{代表日计划购电与实际结算结果}
+    \label{fig:q2_plan_settlement}
+\end{figure}
+
+图中黑色短线、蓝色柱和橙色柱分别表示计划购电量、实际提取量和紧急购电量。
+
+\subsection{指定日期分时段储能调度}
+
+四个指定日期的分时段储能充放电量见表~\ref{tab:q2_typical_day_storage}。
+
+\begin{table}[H]
+    \centering
+    \caption{典型日期分时段储能充放电量}
+    \label{tab:q2_typical_day_storage}
+    \renewcommand{\arraystretch}{1.25}
+    \setlength{\tabcolsep}{4pt}
+
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        \rowcolor{headerblue}
+        \textbf{时段}
+        & \textbf{2025年3月20日}
+        & \textbf{2025年6月21日}
+        & \textbf{2025年9月23日}
+        & \textbf{2025年12月21日} \\
+        \hline
+        \(0{:}00\) 至 \(4{:}00\)
+        & 4500.00 / 0.00
+        & 0.00 / 0.00
+        & 4500.00 / 0.00
+        & 4500.00 / 0.00 \\
+        \hline
+        \(4{:}00\) 至 \(8{:}00\)
+        & 833.33 / 5185.11
+        & 794.74 / 1973.37
+        & 833.33 / 5330.28
+        & 1666.67 / 1508.33 \\
+        \hline
+        \(8{:}00\) 至 \(12{:}00\)
+        & 6107.01 / 3454.89
+        & 3864.31 / 0.00
+        & 6075.86 / 3309.72
+        & 5833.33 / 7806.67 \\
+        \hline
+        \(12{:}00\) 至 \(16{:}00\)
+        & 5440.98 / 713.87
+        & 3110.54 / 0.00
+        & 5430.75 / 680.36
+        & 8242.96 / 2761.80 \\
+        \hline
+        \(16{:}00\) 至 \(20{:}00\)
+        & 0.00 / 5699.56
+        & 0.00 / 5814.56
+        & 0.00 / 5833.33
+        & 0.00 / 5683.75 \\
+        \hline
+        \(20{:}00\) 至 \(24{:}00\)
+        & 5333.33 / 2940.44
+        & 5333.33 / 2825.44
+        & 5333.33 / 2806.67
+        & 5333.33 / 2956.25 \\
+        \hline
+        \textbf{日合计}
+        & \cellcolor{datablue}\textbf{22214.65 / 17993.87}
+        & \cellcolor{datablue}\textbf{13102.92 / 10613.37}
+        & \cellcolor{datablue}\textbf{22173.27 / 17960.36}
+        & \cellcolor{datablue}\textbf{25576.29 / 20716.80} \\
+        \hline
+    \end{tabular}%
+    }
+
+    \par\smallskip
+    {\footnotesize
+    注：单位为 \(\mathrm{kWh}\)，每格依次表示充电量和放电量。
+    四个日期的日初和日末储电量均为 \(6000\,\mathrm{kWh}\)。
+    }
+\end{table}
+
+\section{问题一约束残差与检验明细}
+\label{app:q1_checks}
+
+电量平衡与储能状态转移约束的逐时段残差定义为
+\begin{equation}
+\begin{aligned}
+    e_t^{\mathrm{bal}}
+    &=x_t^\ast+G_t-w_t^\ast+r_t^\ast-L_t-c_t^\ast,\\
+    e_t^{\mathrm{sto}}
+    &=s_t^\ast-s_{t-1}^\ast
+      -\eta_c c_t^\ast+\frac{r_t^\ast}{\eta_r},
+\end{aligned}
+\label{eq:app_q1_constraint_residuals}
+\end{equation}
+其中 \(x_t^\ast,w_t^\ast,c_t^\ast,r_t^\ast,s_t^\ast\) 为最终调度方案。
+144 个时段的最大绝对残差分别为
+\(2.27\times10^{-13}\,\mathrm{kWh}\) 和
+\(8.31\times10^{-13}\,\mathrm{kWh}\)。
+
+荷电状态按储电量占额定容量的比例定义
+\begin{equation}
+    \mathrm{SOC}_t
+    =
+    \frac{s_t^\ast}{12000}\times100\%,
+    \label{eq:app_q1_soc_conversion}
+\end{equation}
+全天储电量的最小值与最大值分别为 \(1200\,\mathrm{kWh}\) 与 \(10800\,\mathrm{kWh}\)，
+对应 SOC 为 \(10\%\) 与 \(90\%\)；日初与日末储电量均为 \(6000\,\mathrm{kWh}\)，对应 SOC 均为 \(50\%\)。
+
+单时段最大充电量与放电量分别为 \(833.3333\,\mathrm{kWh}\) 与 \(715.6530\,\mathrm{kWh}\)，
+购电量与弃光量均满足相应运行边界。
+第二阶段购电费用较第一阶段最优值增加约 \(10^{-4}\) 元，未超过设定容差。
+
+\section{问题二符号说明}
+\label{app:q2_symbols}
+
+\begin{table}[H]
+    \centering
+    \label{tab:q2_symbols}
+    \begin{tabularx}{0.88\textwidth}
+    {@{}>{\centering\arraybackslash}p{0.22\textwidth}
+    >{\centering\arraybackslash}X@{}}
+        \toprule
+        符号 & 含义 \\
+        \midrule
+        \(t,m\) & 时段编号与场景编号 \\
+        \(\pi_t\) & 第 \(t\) 时段的外网购电价格 \\
+        \(L_t,G_t\) & 第 \(t\) 时段的实际负荷电量与实际光伏发电量 \\
+        \(\hat L_t,\hat G_t\) & 第 \(t\) 时段的负荷与光伏点预测值 \\
+        \(L_t^m,G_t^m\) & 场景 \(m\) 下第 \(t\) 时段的负荷与光伏发电量 \\
+        \(x_t\) & 第 \(t\) 时段的计划购电量 \\
+        \(c_t\) & 第 \(t\) 时段由交流母线送入储能的充电量 \\
+        \(r_t\) & 第 \(t\) 时段由储能释放到交流母线的放电量 \\
+        \(s_t\) & 第 \(t\) 时段结束时的储电量 \\
+        \(y_t^m\) & 场景 \(m\) 下第 \(t\) 时段实际使用的计划购电量 \\
+        \(e_t^m\) & 场景 \(m\) 下第 \(t\) 时段的紧急购电量 \\
+        \(g_t^m\) & 场景 \(m\) 下第 \(t\) 时段的实际光伏利用量 \\
+        \(u_t^m\) & 场景 \(m\) 下第 \(t\) 时段未使用的计划购电量 \\
+        \(w_t^m\) & 场景 \(m\) 下第 \(t\) 时段的弃光量 \\
+        \(v_t^m\) & 场景 \(m\) 下第 \(t\) 时段的供给过剩弃电量 \\
+        \(C_m\) & 场景 \(m\) 下的总购电费用 \\
+        \(\zeta,q_m\) & CVaR中的风险阈值与超额费用变量 \\
+        \(\alpha,\beta\) & CVaR置信水平与风险权重 \\
+        \(\xi^+,\xi^-\) & 日末储电量相对期初的正负偏差 \\
+        \(\kappa_2\) & 软终端偏差惩罚系数 \\
+        \bottomrule
+    \end{tabularx}
+    \vspace{0.4em}
+    \caption{问题二符号说明}
+\end{table}
