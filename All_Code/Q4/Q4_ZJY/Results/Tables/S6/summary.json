@@ -1,0 +1,21 @@
+{
+  "strategy": "S6",
+  "report_days": 334,
+  "report_start": "2025-02-01",
+  "report_end": "2025-12-31",
+  "initial_soc_kwh": 6000.0,
+  "final_soc_kwh": 6000.000000000001,
+  "plan_cost_yuan": 14655583.50518538,
+  "adjustment_cost_yuan": 4931.041635906515,
+  "market_cost_yuan": 14660514.546821287,
+  "emergency_cost_yuan": 653641.0259725063,
+  "total_cost_yuan": 15314155.572793793,
+  "alternative_total_cost_yuan_for_same_policy": 15792065.27102669,
+  "emergency_kwh": 162845.88319760616,
+  "curtail_kwh": 1749533.400635254,
+  "spill_kwh": 123710.25084393742,
+  "max_solver_eq_residual": 2.6943780540023e-11,
+  "max_solver_ub_violation": 1.1641532182693481e-10,
+  "simultaneous_charge_discharge_count": 0,
+  "elapsed_seconds": 142.49329549999675
+}
