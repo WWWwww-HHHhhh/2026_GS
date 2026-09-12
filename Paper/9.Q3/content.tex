@@ -1,20 +1,377 @@
 % !TeX root = ../main.tex
-\section{问题三：模型建立与求解}
-\subsection{建模思路}
-【填写本问的核心难点及解决思路。】
+\section{问题三：多时点光伏预报驱动的滚动购电优化}
 
-\subsection{模型建立}
-【填写模型、指标与约束。】
+\subsection{模型概述}
 
-\subsection{模型求解}
-【填写求解过程与参数。】
+问题三在每天 \(0{:}00\)、\(6{:}00\)、\(12{:}00\)、\(18{:}00\) 可依次获得未来 24 小时的光伏整点预报，
+既可按 \(0{:}00\) 预报制定全天计划，也可依据后续预报调整尚未执行的时段。
+调整并非免费：最终购电量低于当日 \(0{:}00\) 计划的部分按交易时刻电价的 \(50\%\) 支付违约金，
+高于计划的部分按 \(1.5\) 倍电价支付；供电缺口的紧急购电仍按 5 倍电价结算。
 
-\subsection{结果与分析}
-【填写结果及结论。】
+本文将问题三建模为\emph{带非对称结算的滚动随机线性规划}（滚动 MPC）。
+选择该框架的理由有三点：
+其一，单个预测窗口内的能量平衡、储电量递推与分段结算函数对决策变量均为线性，
+分段结算函数在正电价下是凸分段线性函数，可精确线性化，因此每个窗口仍可用线性规划求全局最优；
+其二，各时刻的预报误差可通过历史成对残差整块抽样注入场景，
+再用条件风险价值（CVaR）刻画尾部高费用风险，避免只优化期望；
+其三，题目所问“是否需要引入其他时刻的预报”本质上是\emph{信息价值}问题，
+只有在统一结算口径下对照若干“可用预报时刻集合”，才能给出可复算的回答。
+本文据此设置六种更新策略进行全年对照。
 
-\subsection{模型检验与灵敏度分析}
-【填写问题三的检验指标、对照方法、误差及适用条件。】
+\subsection{时间轴对齐与预报尺度转换}
 
-【说明关键参数的变化范围、结果变化和稳定性；填写实际检验结果。】
+附件 3 给出的是未来整点预报，而购电决策按 10 分钟时段执行，因此必须先统一时间尺度。
+本文取当前已知光伏功率作为 \(0\) 小时锚点，对相邻整点预报作线性插值，
+得到各发布时刻对未来 10 分钟时段的光伏预测。
+为验证该处理，本文以 2025 年全年 334 个输出日为样本，
+把每个发布时刻的转换结果与对应时段的实际光伏比较，并与“阶梯保持”处理对照，结果见表~\ref{tab:q3_forecast_audit}。
 
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{0.94\textwidth}
+    {@{}>{\centering\arraybackslash}p{0.16\textwidth}
+    >{\centering\arraybackslash}p{0.16\textwidth}
+    >{\centering\arraybackslash}X
+    >{\centering\arraybackslash}X@{}}
+        \toprule
+        发布时刻 & 剩余时段数 & 线性插值 MAE / (kWh/时段) & 线性插值 WAPE \\
+        \midrule
+        \(0{:}00\) & 144 & 32.92 & 8.30\% \\
+        \(6{:}00\) & 108 & 26.42 & 5.01\% \\
+        \(12{:}00\) & 72 & 12.54 & 3.24\% \\
+        \(18{:}00\) & 36 & 1.67 & 51.45\% \\
+        \bottomrule
+    \end{tabularx}
+    \vspace{0.4em}
+  \caption{光伏预报由整点转换到 10 分钟尺度的误差审计}
+    \label{tab:q3_forecast_audit}
+\end{table}
 
+线性插值在四个时刻的 MAE 与 WAPE 均明显优于阶梯保持
+（例如 \(0{:}00\) 的 WAPE 为 \(8.30\%\) 对 \(15.61\%\)），故全文采用线性插值。
+需要特别指出，\(18{:}00\) 发布后剩余时段仅 36 个，光伏已接近日落而大多为 0，
+其绝对误差虽小（\(1.67\ \mathrm{kWh}\)/时段），但相对误差高达 \(51.45\%\)，
+说明该时刻预报在\emph{相对精度}上最不可靠。
+这一现象为后文“是否值得引入 \(18{:}00\) 预报”的判断提供了第一层依据，见图~\ref{fig:q3_forecast_error}。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\textwidth]
+    {../All_Code/Q3/Results/Pictures/q3_fig3_forecast_conversion_error.pdf}
+    \caption{四个发布时刻的预报转换误差（线性插值 vs 阶梯保持）}
+    \label{fig:q3_forecast_error}
+\end{figure}
+
+\subsection{符号与变量说明}
+
+除问题一已有符号外，问题三新增符号如表~\ref{tab:q3_symbols} 所示，全部流量变量以 kWh 为单位。
+
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{0.9\textwidth}
+    {@{}>{\centering\arraybackslash}p{0.26\textwidth}
+    >{\centering\arraybackslash}X@{}}
+        \toprule
+        符号 & 含义 \\
+        \midrule
+        \(x^{0}_{t}\) & 当日 \(0{:}00\) 制定的计划购电量 \\
+        \(\tilde{x}_{t}\) & 时段执行前最终生效的调整购电量 \\
+        \(z_{t}\) & 时段最终购电量相对 \(0{:}00\) 计划的结算费用 \\
+        \(J^{\mathrm{hold}}_{k},J^{\mathrm{adj}}_{k}\) & 发布时刻 \(k\) 维持现方案／允许调整后的预计目标值 \\
+        \(\mathcal{A}_{k}\) & 发布时刻 \(k\) 之后当日尚未执行的时段集合 \\
+        \(\omega,M\) & 场景编号与场景总数 \\
+        \(\alpha,\beta\) & CVaR 置信水平与风险权重 \\
+        \(\kappa\) & 软终端储电量偏差惩罚系数 \\
+        \(\varepsilon\) & 抑制无意义储能吞吐的微小惩罚系数 \\
+        \bottomrule
+    \end{tabularx}
+    \vspace{0.4em}
+  \caption{问题三新增符号说明}
+    \label{tab:q3_symbols}
+\end{table}
+
+\subsection{滚动随机优化模型}
+
+\subsubsection{单窗口目标函数}
+
+设发布时刻 \(k\) 的剩余时段集合为 \(\mathcal{A}_{k}\)，以该时刻真实储电量 \(s^{\mathrm{act}}_{k}\) 为初始状态。
+场景 \(\omega\) 下的市场购电成本为
+\begin{equation}
+    C^{\omega}_{k}
+    =
+    \sum_{t\in\mathcal{A}_{k}} z^{\omega}_{t}
+    +
+    5\sum_{t\in\mathcal{A}_{k}}\pi_{t}e^{\omega}_{t},
+    \label{eq:q3_scenario_cost}
+\end{equation}
+其中 \(z^{\omega}_{t}\) 为最终购电量相对 \(0{:}00\) 计划的结算费用，\(e^{\omega}_{t}\) 为场景中的紧急购电量。
+滚动优化的目标为期望成本与尾部风险的加权和，并附加储能吞吐惩罚与末端储电量软约束：
+\begin{equation}
+    \min\ J_{k}
+    =
+    (1-\beta)\sum_{\omega}p_{\omega}C^{\omega}_{k}
+    +\beta\left(\zeta_{k}+\frac{1}{1-\alpha}\sum_{\omega}p_{\omega}q_{k,\omega}\right)
+    +\varepsilon\sum_{t\in\mathcal{A}_{k}}\left(c_{t}+r_{t}\right)
+    +\kappa\left(\xi^{+}_{k}+\xi^{-}_{k}\right),
+    \label{eq:q3_objective}
+\end{equation}
+其中 CVaR 通过辅助变量线性化：
+\begin{equation}
+    q_{k,\omega}\ge C^{\omega}_{k}-\zeta_{k},
+    \qquad
+    q_{k,\omega}\ge 0 .
+    \label{eq:q3_cvar}
+\end{equation}
+
+\subsubsection{非对称分段结算的线性化}
+
+题目规定，计划高于调整的差额按 \(0.5\) 倍电价、调整高于计划的差额按 \(1.5\) 倍电价计费。
+在净结算口径下，时段结算费用为
+\begin{equation}
+    z_{t}
+    =
+    \begin{cases}
+        \pi_{t}\tilde{x}_{t}+0.5\pi_{t}\left(x^{0}_{t}-\tilde{x}_{t}\right), & \tilde{x}_{t}\le x^{0}_{t},\\[2pt]
+        \pi_{t}x^{0}_{t}+1.5\pi_{t}\left(\tilde{x}_{t}-x^{0}_{t}\right), & \tilde{x}_{t}>x^{0}_{t}.
+    \end{cases}
+    \label{eq:q3_settlement}
+\end{equation}
+当 \(\pi_{t}>0\) 时式~\eqref{eq:q3_settlement} 为凸分段线性函数，等价于两条线性下界：
+\begin{equation}
+    z_{t}\ge 0.5\pi_{t}\left(\tilde{x}_{t}+x^{0}_{t}\right),
+    \qquad
+    z_{t}\ge 1.5\pi_{t}\tilde{x}_{t}-0.5\pi_{t}x^{0}_{t},
+    \label{eq:q3_settlement_linear}
+\end{equation}
+最小化目标时自动取等号。本文按\emph{最终调整购电量相对当日 \(0{:}00\) 计划一次性结算}，
+同一时段不存在重复计费；未被调整的时段满足 \(\tilde{x}_{t}=x^{0}_{t}\)，代入得 \(z_{t}=\pi_{t}x^{0}_{t}\)，与计划购电费用一致。
+该口径的另一种解释（原计划全额付款、差额额外付违约或加价）将作为灵敏度对照在 \ref{sec:q3_value} 节讨论。
+
+\subsubsection{约束条件}
+
+每个场景内需满足电量平衡与储能递推：
+\begin{equation}
+    y^{\omega}_{t}+e^{\omega}_{t}+g^{\omega}_{t}+r_{t}
+    =
+    L^{\omega}_{t}+c_{t},
+    \qquad
+    s_{t}=s_{t-1}+\eta_{c}c_{t}-\frac{r_{t}}{\eta_{r}},
+    \label{eq:q3_balance}
+\end{equation}
+其中 \(0\le y^{\omega}_{t}\le \tilde{x}_{t}\)（实际提取量不超过生效的调整购电量），
+\(0\le g^{\omega}_{t}\le G^{\omega}_{t}\)（光伏利用量不超过场景可用光伏）。
+此外还需满足储电量边界 \(1200\le s_{t}\le 10800\ \mathrm{kWh}\)、
+单时段充放电量不超过 \(833.33\ \mathrm{kWh}\)，以及末端软约束
+\begin{equation}
+    s_{k+24\mathrm{h}}-s^{\mathrm{ref}}_{k}=\xi^{+}_{k}-\xi^{-}_{k},
+    \qquad \xi^{+}_{k},\xi^{-}_{k}\ge 0 ,
+    \label{eq:q3_terminal}
+\end{equation}
+用于抑制“只看未来 24 小时”的窗口末端效应；软终端罚项不计入对外报告的真实购电费用。
+
+\subsubsection{非预期性与决策冻结}
+
+滚动优化的关键在于信息使用范围：每个窗口只允许使用该发布时刻及以前的真实信息，
+已执行时段的历史决策不可追溯修改。本文通过三条规则强制实现：
+（1）各场景的光伏与负荷均由\emph{历史}成对残差整块抽样生成，不使用当日未知的实际值；
+（2）窗口内的计划购电量、充放电量与储电量安排对全部场景共享；
+（3）当日已执行时段的最终购电量固定为其已生效值。
+第 \ref{sec:q3_validation} 节的独立复核显示，334 天内 \(0{:}00\)–\(6{:}00\) 共 36 个区间的最终计划与 \(0{:}00\) 计划完全一致，零违反。
+
+\subsubsection{是否采用调整的判据}
+
+在发布时刻 \(k\)，本文分别求解两个模型：保持当前购电安排的最优预计目标值 \(J^{\mathrm{hold}}_{k}\)，
+与允许调整购电量后的最优预计目标值 \(J^{\mathrm{adj}}_{k}\)，两者使用相同的场景集与相同的当前储电量。
+仅当 \(J^{\mathrm{hold}}_{k}-J^{\mathrm{adj}}_{k}\) 超过数值容差 \(\tau=10^{-4}\) 元时采用新方案。
+该容差只用于剔除求解器数值误差，题目并未规定固定调整手续费，本文也不虚构该项费用。
+
+\subsection{求解流程与策略设置}
+
+本文用 Python 实现上述模型，调用 HiGHS 求解器（稀疏矩阵组装），流程如图~\ref{fig:q3_flowchart} 所示。
+为回答“是否需要引入其他时刻预报”，定义六种可用预报时刻集合：
+\(S_{0}=\{0\}\)、\(S_{6}=\{0,6\}\)、\(S_{12}=\{0,12\}\)、\(S_{18}=\{0,18\}\)、
+\(S_{6,12}=\{0,6,12\}\) 与 \(S_{\mathrm{all}}=\{0,6,12,18\}\)，
+在同一预测器、同一残差场景库与同一结算口径下分别完成 2025 年 2 月 1 日至 12 月 31 日共 334 天的全年回测。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]
+    {../All_Code/Q3/Results/Pictures/q3_fig6_model_flowchart.pdf}
+    \caption{问题三滚动优化求解流程}
+    \label{fig:q3_flowchart}
+\end{figure}
+
+主要参数取值：CVaR 置信水平 \(\alpha=0.9\)，风险权重 \(\beta=0.2\)，场景数 \(M=30\)，
+软终端罚系数 \(\kappa=0.5317\ \mathrm{元/kWh}\)（取问题一储能边际价值的中位数，保证各问口径一致），
+储能吞吐惩罚 \(\varepsilon=10^{-4}\)。单策略全年回测耗时 \(82\sim179\ \mathrm{s}\)，六策略合计约 13 分钟。
+
+\subsection{结果分析}
+
+\subsubsection{六种预报策略的全年费用对比}
+
+六种策略的全年实际费用与费用结构见表~\ref{tab:q3_strategies}，直观对比如图~\ref{fig:q3_strategy_cost} 所示。
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lrrrrr}
+        \toprule
+        策略 & 计划购电费/万元 & 调整费用/万元 & 紧急购电费/万元 & 总费用/万元 & 紧急购电量/kWh \\
+        \midrule
+        \(S_{0}\) & 1405.53 & \(0.00\) & 80.61 & 1486.14 & 214020.65 \\
+        \(S_{6}\) & 1405.98 & \(0.50\) & 62.13 & 1468.61 & 163570.07 \\
+        \(S_{12}\) & 1406.35 & \(-8.33\) & 67.55 & 1465.57 & 178625.60 \\
+        \(S_{18}\) & 1406.33 & \(1.86\) & 79.40 & 1487.59 & 211753.94 \\
+        \(S_{6,12}\) & 1406.36 & \(-12.81\) & 58.23 & 1451.77 & 154316.09 \\
+        \(S_{\mathrm{all}}\) & 1406.34 & \(-12.52\) & 57.94 & \textbf{1451.76} & \textbf{154171.38} \\
+        \bottomrule
+    \end{tabular}
+    \vspace{0.4em}
+  \caption{六种预报更新策略的全年费用对比（2025 年 2 月 1 日至 12 月 31 日）}
+    \label{tab:q3_strategies}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.84\textwidth]
+    {../All_Code/Q3/Results/Pictures/q3_fig1_strategy_cost.pdf}
+    \caption{六种预报策略的全年实际购电费用（虚线为问题二点预测基线）}
+    \label{fig:q3_strategy_cost}
+\end{figure}
+
+由表~\ref{tab:q3_strategies} 与图~\ref{fig:q3_strategy_cost} 可得到三点结论。
+其一，引入预报更新能显著降低费用：最优的 \(S_{\mathrm{all}}\) 策略全年总费用为 \(1451.76\) 万元，
+相对仅使用 \(0{:}00\) 预报的 \(S_{0}\) 策略（\(1486.14\) 万元）节省 \(34.37\) 万元，降幅 \(2.31\%\)；
+同时紧急购电量由 \(21.40\) 万 kWh 降至 \(15.42\) 万 kWh，下降 \(27.96\%\)，
+说明滚动更新主要通过减少高价应急购电来降低成本。
+其二，\(S_{\mathrm{all}}\) 相对问题二点预测基线 \(1470.90\) 万元节省 \(19.13\) 万元（\(1.30\%\)）。
+其三，不同更新时刻的价值差异极大：单独引入 \(12{:}00\) 预报即可节省约 \(20.57\) 万元，
+而单独引入 \(18{:}00\) 预报的总费用（\(1487.59\) 万元）反而比完全不更新（\(1486.14\) 万元）高出 \(1.45\) 万元。
+
+\subsubsection{指定日期的更新效果}
+
+题目指定的四个日期上，全更新策略相对仅 \(0{:}00\) 计划的费用变化见表~\ref{tab:q3_specified} 与图~\ref{fig:q3_specified}。
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lrrrr}
+        \toprule
+        日期 & \(S_{0}\) 总费用/元 & \(S_{\mathrm{all}}\) 总费用/元 & 费用节省/元 & 紧急购电量变化/kWh \\
+        \midrule
+        2025-03-20 & 49674.08 & 47894.26 & \(+1779.83\) & \(+67.24\) \\
+        2025-06-21 & 23766.02 & 23644.46 & \(+121.55\) & \(+25.58\) \\
+        2025-09-23 & 50032.84 & 48374.74 & \(+1658.10\) & \(-31.13\) \\
+        2025-12-21 & 65791.52 & 66257.57 & \(-466.05\) & \(+356.73\) \\
+        \bottomrule
+    \end{tabular}
+    \vspace{0.4em}
+  \caption{四个指定日期的更新效果（全更新相对仅 \(0{:}00\) 计划）}
+    \label{tab:q3_specified}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]
+    {../All_Code/Q3/Results/Pictures/q3_fig2_specified_day_savings.pdf}
+    \caption{四个指定日期的费用节省（\(S_{0}\) 费用减去 \(S_{\mathrm{all}}\) 费用）}
+    \label{fig:q3_specified}
+\end{figure}
+
+四个日期中三个因更新而节省，其中春季（3 月 20 日）与秋季（9 月 23 日）日间光伏充足，
+更新把新增预报转化为更准确的光储配合，单日节省 \(1658\sim1780\) 元；
+而冬季（12 月 21 日）因更新后紧急购电增加，单日反而多支出 \(466.05\) 元。
+这说明预报更新并非“越更新越好”，其价值取决于当日预报相对 \(0{:}00\) 预报是否真正带来信息增益，
+这正是题目要求分析的核心。
+
+\subsubsection{典型日调度与全年储电量分布}
+
+以 2025 年 6 月 21 日为例，图~\ref{fig:q3_typical} 给出电价、实际负载与光伏、
+最终生效购电量与储能净充放电、计划调整量以及储电量轨迹。
+当天中午光伏大幅高于负载，购电量降至零且储能净充电接近功率上限；
+午后光伏回落，储能在 16 时附近被更新策略下调购电量；
+傍晚高价时段储能放电，21 时后储电量回落至下限附近并再次充电。
+全天储电量始终处于 \(1200\sim10800\ \mathrm{kWh}\) 区间内，且无同时充放电。
+图~\ref{fig:q3_soc_heatmap} 进一步给出全年 334 天的储电量分布：
+夏季储能在中午光伏富余时充至上限，冬季则更多承担高价时段的放电任务，全年未出现越界。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\textwidth]
+    {../All_Code/Q3/Results/Pictures/q3_fig4_typical_day.pdf}
+    \caption{典型日（2025-06-21）的购电、储能与储电量轨迹}
+    \label{fig:q3_typical}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]
+    {../All_Code/Q3/Results/Pictures/q3_fig5_annual_soc_heatmap.pdf}
+    \caption{全年储电量分布（日期 × 时刻）}
+    \label{fig:q3_soc_heatmap}
+\end{figure}
+
+\subsection{是否需要引入其他时刻的预报}
+\label{sec:q3_value}
+
+本节从三个相互独立的层次回答题目提出的开放性问题。
+
+\textbf{第一层：策略对照。}
+表~\ref{tab:q3_strategies} 显示，引入 \(6{:}00\) 与 \(12{:}00\) 预报的收益明确
+（\(S_{6,12}\) 相对 \(S_{0}\) 节省 \(34.37\) 万元），
+但 \(S_{6,12}\) 与 \(S_{\mathrm{all}}\) 的总费用仅相差 \(56.68\) 元，不到总费用的 \(0.0004\%\)；
+而单独使用 \(18{:}00\) 预报不仅无收益，反而比不更新多支出 \(1.45\) 万元。
+
+\textbf{第二层：预报质量。}
+表~\ref{tab:q3_forecast_audit} 表明 \(18{:}00\) 发布后剩余时段的光伏预报相对误差最高（WAPE \(51.45\%\)）。
+这是因为该时刻已接近日落，剩余时段中光伏大多为 0，
+更新预报所能提供的可用能量信息本就极少，而按 \(1.5\) 倍或 \(0.5\) 倍电价调整计划还要付出结算代价，
+因此“更新越晚越准”的直觉在此处并不成立——\emph{信息价值取决于剩余决策窗口内的能量规模，而非预报精度本身}。
+
+\textbf{第三层：结算口径敏感性。}
+若把结算口径改为“原计划全额付款、差额另付违约或加价”的另一种解释，
+同一策略 \(S_{\mathrm{all}}\) 的全年总费用为 \(1509.51\) 万元（较主口径高 \(57.74\) 万元，\(3.98\%\)），
+此时 \(S_{6,12}\) 反而比 \(S_{\mathrm{all}}\) 低 \(1464\) 元。
+可见在两种结算口径下，\(S_{6,12}\) 与 \(S_{\mathrm{all}}\) 的差异都在千元量级
+（约占总费用的 \(0.01\%\)），并不改变本文结论。
+
+综合三层证据，本文的结论是：
+\textbf{建议引入 \(6{:}00\) 与 \(12{:}00\) 的预报进行滚动调整，其收益稳定且量级显著；
+\(18{:}00\) 预报的边际价值可以忽略，若考虑实际执行中的通信、契约与人力成本，可以不纳入调整机制。}
+需要说明的是，该结论建立在本文的预测器与结算口径之上，
+若企业实际可获得的预报精度或调整成本结构不同，应重新评估。
+
+\subsection{模型检验}
+\label{sec:q3_validation}
+
+为排除“用未来信息换来的低费用”，本文对六种策略的全部 334 天、共 48096 个实际时段做了独立复核。
+复核过程不引用优化器的目标值，而是直接从逐时段结果重算能量平衡、储电量递推与各类费用，主要结果见表~\ref{tab:q3_validation}。
+
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{0.92\textwidth}
+    {@{}>{\centering\arraybackslash}X
+    >{\centering\arraybackslash}p{0.28\textwidth}
+    >{\centering\arraybackslash}p{0.13\textwidth}@{}}
+        \toprule
+        检验项目 & 结果 & 结论 \\
+        \midrule
+        六策略独立复核（能量、费用、储电量、因果性） & 全部通过 & 通过 \\
+        功率平衡最大绝对残差 & \(1.9\times10^{-9}\ \mathrm{kWh}\) & 通过 \\
+        储电量跨日衔接最大偏差 & \(0\) & 通过 \\
+        单个 10 分钟时段最大充放电量 & \(833.33\ \mathrm{kWh}\)，未越界 & 通过 \\
+        同时充放电时段数 & \(0\) & 通过 \\
+        已执行时段决策冻结违反数 & \(0\) & 通过 \\
+        结果表时间映射与跨行恒等式 & 334 天零异常 & 通过 \\
+        汇总列与逐时段求和一致性 & 完全一致 & 通过 \\
+        \bottomrule
+    \end{tabularx}
+    \vspace{0.4em}
+  \caption{问题三模型检验结果}
+    \label{tab:q3_validation}
+\end{table}
+
+独立复核还确认了三项易错细节：
+（1）最终购电量相对 \(0{:}00\) 计划只结算一次，未出现同一时段被重复收取违约与超量费用；
+（2）紧急购电量与逐时段记录之和完全一致（\(154171.38\ \mathrm{kWh}\)）；
+（3）官方结果模板采用跨行展示，普通日期行最后一个计划格对应次日首区间，
+因此行内可见值之和与该行“全天购电量”并不相等，这是模板结构所致而非计算错误，
+本文在导出环节对该恒等式逐日做了校验（见支撑材料中的结果表校验脚本）。
