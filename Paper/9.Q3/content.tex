@@ -123,72 +123,98 @@ j_{\omega}<i
 两类残差按同一历史日期同步抽取，从而保留负荷与光伏误差之间的相关关系。
 由于全部残差均来自当前日期之前已经结束的历史日，场景生成不使用未来信息。
 
+
 \subsection{滚动随机线性规划模型}
 
-问题一和问题二中的电价\(\pi_t\)、负荷\(L_t\)、光伏\(G_t\)、充电量\(c_t\)、放电量\(r_t\)和储电量\(s_t\)仍沿用原含义。零点计划购电量记为\(x_t^0\)，时段执行前最终生效的购电量记为\(\widetilde{x}_t\)。实际提取购电量\(y_t^\omega\)、紧急购电量\(e_t^\omega\)、光伏利用量\(g_t^\omega\)和弃光量\(w_t^\omega\)沿用问题二含义。以\(h_t^\omega\)表示储能放电超过即时需求时的余电处置量，避免与问题一储能边际价值混用。购电计划、储能充放电和储电量轨迹在每次窗口内对所有场景共享，实际提取量和缺口处理量可以随场景变化。
+问题三在前两问模型基础上，引入多时点光伏预测和购电计划调整机制。记零点计划购电量为 $x_t^0$，时段执行前最终生效的购电量为 $\widetilde{x}_t$。实际购电量 $y_t^\omega$、紧急购电量 $e_t^\omega$、光伏利用量 $g_t^\omega$ 和弃光量 $w_t^\omega$ 沿用问题二定义，并以 $h_t^\omega$ 表示储能放电超过即时需求时的余电处置量。购电计划和储能决策在同一窗口内对各场景共享，实际购电和缺口处理允许随场景变化。
 
-\subsubsection{购电调整结算与风险目标}
+\subsubsection{购电调整费用与风险目标}
 
-题目对调低计划的差额按半价结算，对调高计划的差额按1.5倍电价结算。本文对最终生效购电量相对零点计划进行一次性净结算，同一时段不重复收取调整费用。正电价下，时段市场费用是两条仿射函数的较大值
+根据题意，计划购电量调低部分按交易电价的 $50\%$ 结算，调高部分按交易电价的 $150\%$ 结算。因此，最终购电计划相对零点计划的市场费用可表示为
 \begin{equation}
- F_t(\widetilde{x}_t,x_t^0)=
- \max\left\{\frac{\pi_t}{2}(\widetilde{x}_t+x_t^0),\
- \frac{3\pi_t}{2}\widetilde{x}_t-\frac{\pi_t}{2}x_t^0\right\} .
- \label{eq:q3_settlement}
-\end{equation}
-引入市场费用变量\(z_t\)，并用下式线性化
-\begin{equation}
- z_t\geq\frac{\pi_t}{2}(\widetilde{x}_t+x_t^0),\qquad
- z_t\geq\frac{3\pi_t}{2}\widetilde{x}_t-\frac{\pi_t}{2}x_t^0 .
- \label{eq:q3_settlement_linear}
-\end{equation}
-由于目标最小化费用，最优解中的\(z_t\)自动取两条下界的较大值，因此不需要引入调高、调低或充放电状态的二进制变量。实际提取量可低于已生效计划量，但未提取不代表原计划对应的结算费用消失。
-
-设发布时刻\(k\)之后、当日尚未执行的时段集合为\(\mathcal{A}_k\)。场景\(\omega\)下的未来费用为
-\begin{equation}
- C_k^\omega=\sum_{t\in\mathcal{A}_k}\left(z_t+5\pi_t e_t^\omega\right) .
- \label{eq:q3_cost}
-\end{equation}
-在期望费用之外，采用CVaR约束高费用尾部场景。风险置信水平\(\alpha=0.9\)，风险权重\(\beta=0.2\)，30个场景等权。储能软终端罚系数\(\kappa_3=0.531667\)元每千瓦时，取问题一储能边际价值的中位数。吞吐系数\(\gamma_3=10^{-4}\)元每千瓦时，用于抑制无意义的同时充放电。单窗口目标为
-\begin{equation}
- \begin{aligned}
- \min J_k={}&(1-\beta)\sum_{\omega}p_{\omega}C_k^\omega
- +\beta\left(\zeta_k+\frac{1}{1-\alpha}\sum_{\omega}p_{\omega}q_{k\omega}\right)\\
- &+\kappa_3(\xi_k^++\xi_k^-)
- +\gamma_3\sum_{t\in\mathcal{A}_k}(c_t+r_t),
- \end{aligned}
- \label{eq:q3_objective}
-\end{equation}
-其中\(\zeta_k\)和\(q_{k\omega}\)为CVaR线性化变量，满足
-\begin{equation}
- q_{k\omega}\geq C_k^\omega-\zeta_k,\qquad q_{k\omega}\geq0 .
- \label{eq:q3_cvar}
-\end{equation}
-软终端和吞吐罚项只进入求解目标，不计入对外报告的真实购电费用。
-
-\subsubsection{电量平衡与滚动约束}
-
-对每个场景和每个未执行时段，实际提取购电、紧急购电、光伏利用和储能放电共同满足负荷与充电需求。若放电超过即时需求，则以余电处置量保持平衡。可用光伏在利用量和弃光量间分配，实际提取购电量不得超过生效计划
-\begin{equation}
- y_t^\omega+e_t^\omega+g_t^\omega+r_t=L_t^\omega+c_t+h_t^\omega,\qquad
- g_t^\omega+w_t^\omega=G_t^\omega,\qquad
- 0\leq y_t^\omega\leq\widetilde{x}_t .
- \label{eq:q3_balance}
-\end{equation}
-储电量按问题一的状态方程递推
-\begin{equation}
- s_t=s_{t-1}+\eta_c c_t-r_t/\eta_r,\qquad
- 1200\leq s_t\leq10800,\qquad
- 0\leq c_t,r_t\leq833.33 .
- \label{eq:q3_soc}
-\end{equation}
-每次更新只规划至当日24点，并非从发布时刻再向后规划24小时。普通日以当日真实期初储电量为软终端参考，年末最后一天令终端储电量严格回到6000千瓦时
-\begin{equation}
- s_T-s_{i,0}=\xi_k^+-\xi_k^-,\qquad \xi_k^+,\xi_k^-\geq0 .
- \label{eq:q3_terminal}
+F_t(\widetilde{x}_t,x_t^0)
+=
+\max\left\{
+\frac{\pi_t}{2}(\widetilde{x}_t+x_t^0),
+\frac{3\pi_t}{2}\widetilde{x}_t-\frac{\pi_t}{2}x_t^0
+\right\}.
+\label{eq:q3_settlement}
 \end{equation}
 
-零点先求解全天计划。到6点、12点或18点时，若策略包含该时点，则仅利用当时已发布的预报和真实储电量重解剩余时段。此前已经执行的购电和充放电动作固定，不能追溯修改。模型使用HiGHS求解稀疏线性规划，比较\(S_0\)、\(S_6\)、\(S_{12}\)、\(S_{18}\)、\(S_{6,12}\)和\(S_{\mathrm{all}}\)六种策略。它们唯一的差别是可用预报时刻。
+引入辅助变量 $z_t$，将其线性化为
+\begin{equation}
+z_t\geq\frac{\pi_t}{2}(\widetilde{x}_t+x_t^0),
+\qquad
+z_t\geq\frac{3\pi_t}{2}\widetilde{x}_t-\frac{\pi_t}{2}x_t^0.
+\label{eq:q3_settlement_linear}
+\end{equation}
+在费用最小化目标下，$z_t$ 自动取两者较大值，从而保持模型为线性规划。
+
+设第 $k$ 次预报发布后尚未执行的时段集合为 $\mathcal{A}_k$，场景 $\omega$ 下的未来购电费用为
+\begin{equation}
+C_k^\omega=
+\sum_{t\in\mathcal{A}_k}
+\left(z_t+5\pi_t e_t^\omega\right).
+\label{eq:q3_cost}
+\end{equation}
+
+为兼顾平均购电成本与高费用场景风险，在期望费用基础上引入 CVaR。取置信水平 $\alpha=0.9$，风险权重 $\beta=0.2$，则单次滚动窗口的目标函数为
+\begin{equation}
+\begin{aligned}
+\min J_k={}&
+(1-\beta)\sum_{\omega}p_{\omega}C_k^\omega
++\beta\left(
+\zeta_k+\frac{1}{1-\alpha}
+\sum_{\omega}p_{\omega}q_{k\omega}
+\right)\\
+&+\kappa_3(\xi_k^++\xi_k^-)
++\gamma_3\sum_{t\in\mathcal{A}_k}(c_t+r_t),
+\end{aligned}
+\label{eq:q3_objective}
+\end{equation}
+其中
+\begin{equation}
+q_{k\omega}\geq C_k^\omega-\zeta_k,
+\qquad
+q_{k\omega}\geq0.
+\label{eq:q3_cvar}
+\end{equation}
+$\kappa_3$ 为终端储电量偏差罚系数，$\gamma_3$ 为储能吞吐罚系数，两者仅用于稳定优化结果，不计入最终购电费用。
+
+\subsubsection{场景约束与滚动更新}
+
+对于每个场景 $\omega$ 和尚未执行的时段 $t$，电量平衡及光伏分配满足
+\begin{equation}
+\begin{aligned}
+y_t^\omega+e_t^\omega+g_t^\omega+r_t
+&=L_t^\omega+c_t+h_t^\omega,\\
+g_t^\omega+w_t^\omega&=G_t^\omega,\\
+0\leq y_t^\omega&\leq\widetilde{x}_t.
+\end{aligned}
+\label{eq:q3_balance}
+\end{equation}
+
+储能状态转移、容量和充放电功率约束与问题一保持一致，即
+\begin{equation}
+s_t=s_{t-1}+\eta_c c_t-\frac{r_t}{\eta_r},
+\qquad
+1200\leq s_t\leq10800,
+\qquad
+0\leq c_t,r_t\leq833.33.
+\label{eq:q3_soc}
+\end{equation}
+
+普通日允许日末储电量相对当日期初值产生少量偏差，并通过
+\begin{equation}
+s_T-s_{i,0}=\xi_k^+-\xi_k^-,
+\qquad
+\xi_k^+,\xi_k^-\geq0
+\label{eq:q3_terminal}
+\end{equation}
+施加软终端约束。年末最后一天则取消该松弛变量，并严格规定 $s_T=6000$ kWh，以保证全年储能状态闭合。
+
+每天 $0{:}00$ 首先利用最新预测制定全天计划。在 $6{:}00$、$12{:}00$ 和 $18{:}00$ 获得新预测后，仅重新优化当日尚未执行的时段，已执行决策保持不变，并以当前真实储电量作为新的初始状态。由此分别构造 $S_0$、$S_6$、$S_{12}$、$S_{18}$、$S_{6,12}$ 和 $S_{\mathrm{all}}$ 六种策略，以比较不同预测更新频率对购电成本的影响。
+
 
 \subsection{全年结果与预报更新价值}
 
