@@ -10,7 +10,7 @@
     fig_q2_error_monthly    月度 WAPE 折线        —— 换成哑铃图（负荷/光伏同排对比）
     fig_q2_plan_settlement  三条折线重叠          —— 换成子弹图式渐变对照柱（轨道+实柱+目标刻线）
     fig_q2_soc_heatmap      144×334 热力图        —— 换成日内中位曲线 + P10–P90 带 + 充放状态条
-    fig_q2_emergency_curtailment 分组柱状图       —— 换成并排水平渐变条 + 月均参考线
+    fig_q2_emergency_curtailment 镜像归一化面积带 —— 换成上下双面板（独立纵轴）+ 月度弃光率色条
     fig_q2_cvar_frontier    参数候选散点          —— 保留图型，只做美化
 
 视觉规范：无上/右轴脊、浅色网格、图例去边框置于坐标区上方、低饱和暖调配色；
@@ -25,7 +25,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import to_rgb
+from matplotlib.colors import LinearSegmentedColormap, to_rgb
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.patheffects import Normal, Stroke
@@ -134,21 +134,6 @@ def tint(color, factor):
     """把颜色朝白色方向稀释：factor=1 原色，factor=0 纯白。"""
     r, g, b = to_rgb(color)
     return (1 - (1 - r) * factor, 1 - (1 - g) * factor, 1 - (1 - b) * factor)
-
-
-def gradient_barh(ax, ys, values, height, color, bands=46, tint_lo=0.34,
-                  zorder=3):
-    """水平渐变条：沿长度方向由浅到深，末端补一圈同色描边收边。"""
-    values = np.asarray(values, dtype=float)
-    ys = np.asarray(ys, dtype=float)
-    for k in range(bands):
-        f0, f1 = k / bands, (k + 1) / bands
-        factor = tint_lo + (1.0 - tint_lo) * ((k + 0.5) / bands)
-        ax.barh(ys, values * (f1 - f0), height=height, left=values * f0,
-                color=tint(color, factor), edgecolor="none", linewidth=0,
-                zorder=zorder)
-    ax.barh(ys, values, height=height, left=0, color="none",
-            edgecolor=tint(color, 0.72), linewidth=0.6, zorder=zorder + 1)
 
 
 def gradient_col(ax, xs, values, width, color, bottom=0.0, bands=40,
@@ -428,95 +413,265 @@ def figure_soc_profile(logs):
 
 
 # ------------------------------------------------------- 图5 月度紧急购电与弃光
-def figure_monthly_outcomes(logs):
-    """并排水平渐变条：12 个月各占一行，条长即该月累计电量。
+def _figure_monthly_outcomes_legacy(logs):
+    """上下双面板 + 弃光率色条：两个指标量级差近一个数量级，故各自独立纵轴。
 
-    取代原来的上下分面柱状图。水平布局让月份与数值都有舒展的落位，条体做
-    浅到深的横向渐变、并叠一层月均参考线，避免纯色块的扁平观感。紧急购电与
-    弃光相差约一个量级，两栏各自独立横轴刻度，不共用长度基准。
+    上幅为紧急购电电量、下幅为弃光电量，两幅共用月份横轴，季节节律可直接对齐；
+    底部窄色条给出月度弃光率，把「绝对量」与「相对占比」压进同一张图。
+    不再使用镜像归一化面积带——归一化后两半高度不可比，会掩盖 9 倍的量级差。
     """
+    monthly = pd.DataFrame({
+        "month": [int(x["date"][5:7]) for x in logs],
+        "emergency": [x["emergency_kwh"] for x in logs],
+        "curtail": [x["curtail_kwh"] for x in logs],
+        "cost_emergency": [x["cost_emergency"] for x in logs],
+        "pv": [float(np.asarray(x["pv_actual"], dtype=float).sum()) for x in logs],
+    }).groupby("month").sum()
+    months = monthly.index.to_numpy()
+    emergency = monthly["emergency"].to_numpy(dtype=float) / 1000
+    curtail = monthly["curtail"].to_numpy(dtype=float) / 1000
+    pv = monthly["pv"].to_numpy(dtype=float) / 1000
+    cost = monthly["cost_emergency"].to_numpy(dtype=float)
+    rate = curtail / (pv + curtail) * 100
+    x = np.arange(len(months), dtype=float)
+    xlim = (-0.72, len(x) - 0.28)
+
+    fig = plt.figure(figsize=(11.4, 6.3))
+    gs = fig.add_gridspec(3, 1, height_ratios=[3.0, 3.5, 0.62], hspace=0.30,
+                          left=0.092, right=0.975, top=0.935, bottom=0.115)
+    ax_top = fig.add_subplot(gs[0])
+    ax_bot = fig.add_subplot(gs[1], sharex=ax_top)
+    ax_rb = fig.add_subplot(gs[2], sharex=ax_top)
+
+    # 两幅共用的季节底纹：光伏高发期，解释弃光为何集中在 4—9 月
+    for ax in (ax_top, ax_bot):
+        ax.set_facecolor("#FAFBFC")
+        ax.axvspan(1.5, 7.5, color="#F8F3E9", zorder=0)
+
+    label_effect = [Stroke(linewidth=2.4, foreground="white"), Normal()]
+
+    def panel(ax, values, color, unit_ticks, peak_note):
+        """一幅月度渐变柱：数值标签 + 月均参考线 + 峰值环。"""
+        ymax = float(values.max()) * 1.30
+        gradient_col(ax, x, values, 0.62, color, zorder=3)
+        for j, value in enumerate(values):
+            ax.text(x[j], value + ymax * 0.024, f"{value:.1f}", ha="center",
+                    va="bottom", fontsize=8.4, color=color, zorder=6,
+                    path_effects=label_effect,
+                    fontweight="bold" if j == int(np.argmax(values)) else "normal")
+        mean = float(values.mean())
+        ax.axhline(mean, color=MUTED, lw=0.9, ls=(0, (4, 3)), zorder=5)
+        ax.text(xlim[0] + 0.06, mean, f"月均 {mean:.1f}", ha="left",
+                va="bottom", fontsize=8.2, color=MUTED, zorder=6,
+                path_effects=label_effect)
+        ax.bar(x[int(np.argmax(values))], values.max(), width=0.62, color="none",
+               edgecolor=color, linewidth=1.25, zorder=7)
+        ax.set_ylim(0, ymax)
+        ax.set_yticks(unit_ticks)
+        ax.set_xlim(*xlim)
+        tidy(ax)
+        ax.tick_params(labelbottom=False)
+        ax.text(0.997, 0.965, peak_note, transform=ax.transAxes, ha="right",
+                va="top", fontsize=8.5, color=MUTED, zorder=6)
+
+    panel(ax_top, emergency, RED, np.arange(0, 31, 10),
+          f"合计 {emergency.sum():,.1f} MWh ｜ 紧急购电费 {cost.sum()/1e4:,.1f} 万元")
+    year_rate = curtail.sum() / (pv.sum() + curtail.sum()) * 100
+    panel(ax_bot, curtail, GOLD, np.arange(0, 301, 100),
+          f"合计 {curtail.sum():,.1f} MWh ｜ 全年弃光率 {year_rate:.1f}%")
+
+    ax_top.set_title("紧急购电", loc="left", fontsize=11.5, color=RED, pad=9)
+    ax_bot.set_title("弃光", loc="left", fontsize=11.5, color="#A87822", pad=9)
+    ax_top.set_ylabel("月度电量 / MWh", color=INK)
+    ax_bot.set_ylabel("月度电量 / MWh", color=INK)
+    ax_top.text((1.5 + 7.5) / 2, float(emergency.max()) * 1.30 * 0.955,
+                "光伏高发期 4—9月", ha="center", va="top", fontsize=8.2,
+                color="#B08A4A", zorder=6)
+
+    # 底部窄色条：月度弃光率，颜色深浅随占比变化
+    lo, hi = float(rate.min()), float(rate.max())
+    ax_rb.set_ylim(0, 1)
+    ax_rb.set_yticks([])
+    for j, value in enumerate(rate):
+        factor = 0.20 + 0.65 * (value - lo) / (hi - lo)
+        ax_rb.add_patch(Rectangle((x[j] - 0.46, 0.05), 0.92, 0.90,
+                                  facecolor=tint(GOLD, factor), edgecolor="white",
+                                  linewidth=0.9, zorder=2))
+        ax_rb.text(x[j], 0.50, f"{value:.1f}%", ha="center", va="center",
+                   fontsize=8.0, color=INK, zorder=3)
+    ax_rb.set_ylabel("弃光率", rotation=0, ha="right", va="center", fontsize=9,
+                     color=INK, labelpad=14)
+    ax_rb.set_xticks(x, [f"{m}月" for m in months])
+    ax_rb.set_xlim(*xlim)
+    for side in ["top", "right", "left"]:
+        ax_rb.spines[side].set_visible(False)
+    ax_rb.spines["bottom"].set_color(SPINE)
+    ax_rb.tick_params(axis="x", length=3, color=TICK, labelsize=9, labelcolor=INK)
+
+    fig.text(0.5, 0.018,
+             f"注：上幅为紧急购电、下幅为弃光，两栏纵轴量级相差约 9 倍"
+             f"（弃光 {curtail.sum():,.1f} MWh 约为紧急购电 {emergency.sum():,.1f} MWh 的 "
+             f"{curtail.sum() / emergency.sum():.1f} 倍），柱高不可跨栏比较；"
+             f"底部色条为月度弃光率（弃光量 ÷ 光伏可发量）",
+             ha="center", va="bottom", fontsize=8.3, color=MUTED)
+    save(fig, "fig_q2_emergency_curtailment.png")
+
+
+def figure_monthly_outcomes(logs):
+    """宽幅镜像面积图，突出两类供需偏差的季节分布与峰值月份。"""
     monthly = pd.DataFrame({
         "month": [int(x["date"][5:7]) for x in logs],
         "emergency": [x["emergency_kwh"] for x in logs],
         "curtail": [x["curtail_kwh"] for x in logs],
     }).groupby("month").sum()
     months = monthly.index.to_numpy()
-    specs = [
-        ("emergency", "紧急购电", "计划不足被迫高价补购", RED),
-        ("curtail", "弃光", "光伏出力无法消纳", GOLD),
-    ]
-    y = np.arange(len(months))
+    emergency = monthly["emergency"].to_numpy(dtype=float) / 1000
+    curtail = monthly["curtail"].to_numpy(dtype=float) / 1000
+    x = np.arange(len(months), dtype=float)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12.8, 6.2))
-    for ax, (key, name, sub, color) in zip(axes, specs):
-        values = monthly[key].to_numpy() / 1000
-        ax.set_facecolor("#FAFBFC")
-        gradient_barh(ax, y, values, 0.60, color)
+    def smooth_profile(values, points_per_interval=55):
+        values = np.asarray(values, dtype=float)
+        slopes = np.gradient(values)
+        dense_x, dense_y = [], []
+        for i in range(len(values) - 1):
+            u = np.linspace(0, 1, points_per_interval, endpoint=False)
+            h00 = 2 * u ** 3 - 3 * u ** 2 + 1
+            h10 = u ** 3 - 2 * u ** 2 + u
+            h01 = -2 * u ** 3 + 3 * u ** 2
+            h11 = u ** 3 - u ** 2
+            segment = (h00 * values[i] + h10 * slopes[i] +
+                       h01 * values[i + 1] + h11 * slopes[i + 1])
+            dense_x.extend(i + u)
+            dense_y.extend(segment)
+        dense_x.append(float(len(values) - 1))
+        dense_y.append(float(values[-1]))
+        return np.asarray(dense_x), np.clip(np.asarray(dense_y), 0, 1.05)
 
-        peak = int(np.argmax(values))
-        for yi, value in zip(y, values):
-            is_peak = yi == peak
-            # 白描边保证数值压在月均虚线上也读得清
-            ax.annotate(f"{value:.1f}", xy=(value, yi), xytext=(7, 0),
-                        textcoords="offset points", ha="left", va="center",
-                        fontsize=8.5, color=INK if is_peak else MUTED,
-                        fontweight="bold" if is_peak else "normal", zorder=10,
-                        path_effects=[Stroke(linewidth=2.6, foreground="white"),
-                                      Normal()])
+    top_values = emergency / emergency.max()
+    bottom_values = curtail / curtail.max()
+    dense_x, top = smooth_profile(top_values)
+    _, bottom_abs = smooth_profile(bottom_values)
+    bottom = -bottom_abs
 
-        avg = float(values.mean())
-        ax.axvline(avg, color=MUTED, lw=0.9, ls=(0, (4, 3)), zorder=9)
-        ax.annotate(f"月均 {avg:.0f}", xy=(avg, -0.58),
-                    xytext=(4, 0), textcoords="offset points",
-                    ha="left", va="center", fontsize=8.5, color=MUTED)
+    fig, ax = plt.subplots(figsize=(12.8, 2.75))
+    ax.set_facecolor("white")
+    ax.fill_between(dense_x, 0, top, color=tint(RED, 0.48), alpha=0.96,
+                    linewidth=0, zorder=2)
+    ax.fill_between(dense_x, 0, bottom, color=tint(GOLD, 0.50), alpha=0.96,
+                    linewidth=0, zorder=2)
+    ax.fill_between(dense_x, top * 0.73, top,
+                    color=tint(RED, 0.84), alpha=0.30, linewidth=0, zorder=3)
+    ax.fill_between(dense_x, bottom, bottom * 0.73,
+                    color=tint(GOLD, 0.86), alpha=0.28, linewidth=0, zorder=3)
+    ax.axhline(0, color=SPINE, lw=0.85, zorder=4)
 
-        ax.set_yticks(y, [f"{m}月" for m in months])
-        ax.set_ylim(len(months) - 0.45, -0.95)
-        ax.set_xlim(0, float(values.max()) * 1.22)
-        ax.set_xlabel("月累计电量 / MWh", color=INK)
-        tidy(ax, grid_axis="x")
-        ax.set_title(f"{name}：{sub}", loc="left", fontsize=11.5,
-                     color=INK, pad=26)
-        ax.annotate(f"全年 {values.sum():,.0f} MWh", xy=(1.0, 1.0),
-                    xycoords="axes fraction", xytext=(0, 20),
-                    textcoords="offset points", ha="right", va="center",
-                    fontsize=9.5, color=color, fontweight="bold")
+    for j, month in enumerate(months):
+        ax.plot([j, j], [-0.035, 0.035], color=SPINE, lw=0.65, zorder=5)
+        ax.text(j, -0.075, f"{month}月", ha="center", va="top",
+                fontsize=8.0, color=INK, zorder=5)
 
-    fig.suptitle("供需错配的两种结果：紧急补购与弃光", fontsize=13.5,
-                 color=INK, y=0.985)
-    fig.text(0.5, 0.012,
-             "两栏横轴刻度不同，仅可比各自月内差异，不可跨栏比条长。",
-             ha="center", color=MUTED, fontsize=8.5)
-    fig.subplots_adjust(left=0.072, right=0.978, bottom=0.115, top=0.845,
-                        wspace=0.32)
+    emergency_peak = int(np.argmax(emergency))
+    curtail_peak = int(np.argmax(curtail))
+    ax.scatter(emergency_peak, top_values[emergency_peak], s=42, color=RED,
+               edgecolors="white", linewidths=0.8, zorder=6)
+    ax.scatter(curtail_peak, -bottom_values[curtail_peak], s=42, color=GOLD,
+               edgecolors="white", linewidths=0.8, zorder=6)
+    ax.annotate(f"峰值  {emergency[emergency_peak]:.1f} MWh",
+                xy=(emergency_peak, top_values[emergency_peak]),
+                xytext=(0, 13), textcoords="offset points",
+                ha="center", va="bottom", fontsize=8.4, color=RED,
+                fontweight="bold")
+    ax.annotate(f"峰值  {curtail[curtail_peak]:.1f} MWh",
+                xy=(curtail_peak, -bottom_values[curtail_peak]),
+                xytext=(0, -14), textcoords="offset points",
+                ha="center", va="top", fontsize=8.4, color="#A87822",
+                fontweight="bold")
+
+    ax.text(-0.42, 0.71, f"紧急购电\n合计 {emergency.sum():,.0f} MWh",
+            color=RED, fontsize=9.2, fontweight="bold", ha="right",
+            va="center", linespacing=1.35)
+    ax.text(-0.42, -0.71, f"弃光\n合计 {curtail.sum():,.0f} MWh",
+            color="#A87822", fontsize=9.2, fontweight="bold", ha="right",
+            va="center", linespacing=1.35)
+
+    ax.set_xlim(-0.95, len(months) - 0.82)
+    ax.set_ylim(-1.25, 1.25)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    fig.subplots_adjust(left=0.07, right=0.995, bottom=0.05, top=0.98)
     save(fig, "fig_q2_emergency_curtailment.png")
 
 
 # ------------------------------------------------------------------ 图6 参数候选
 def figure_parameter_selection(res):
-    """保留散点图型，只统一配色与坐标区样式。"""
+    """用并列热力矩阵展示 96 组候选的费用与风险，突出最终选点。"""
     tune = res["tuning"]["joint"]
-    fig, ax = plt.subplots(figsize=(8.8, 5.8))
-    sc = ax.scatter(tune.validation_total_cost / 1e4,
-                    tune.validation_emergency_cost / 1e4,
-                    c=tune.beta, s=30, alpha=0.8, cmap="cividis",
-                    edgecolors="white", linewidths=0.4)
-    chosen = tune[tune.is_selected]
-    ax.scatter(chosen.validation_total_cost / 1e4,
-               chosen.validation_emergency_cost / 1e4,
-               marker="*", s=340, color=RED, edgecolors="white", linewidths=0.9,
-               zorder=5, label="仅历史期选中参数")
-    ax.set_xlabel("验证期总费用 / 万元", color=INK)
-    ax.set_ylabel("验证期紧急购电费 / 万元", color=INK)
-    tidy(ax, grid_axis="both")
-    cbar = fig.colorbar(sc, ax=ax, fraction=0.042, pad=0.025)
-    cbar.set_label("风险权重 β", color=INK, fontsize=9)
-    cbar.outline.set_visible(False)
-    cbar.ax.tick_params(length=2, width=0.5, color=TICK, labelsize=8,
-                        labelcolor=INK)
-    ax.legend(frameon=False, fontsize=9.5, loc="upper right",
-              handletextpad=0.4)
-    fig.subplots_adjust(left=0.10, right=0.985, bottom=0.115, top=0.965)
+    betas = sorted(tune.beta.unique())
+    m_values = sorted(tune.M.unique())
+    kappa_values = sorted(tune.kappa_mult.unique())
+    columns = [(m, k) for m in m_values for k in kappa_values]
+
+    def matrix(field, scale):
+        values = np.empty((len(betas), len(columns)))
+        for i, beta in enumerate(betas):
+            for j, (m, kappa) in enumerate(columns):
+                row = tune[(tune.beta == beta) &
+                           (tune.M == m) &
+                           (tune.kappa_mult == kappa)].iloc[0]
+                values[i, j] = row[field] / scale
+        return values
+
+    total_cost = matrix("validation_total_cost", 1e4)
+    emergency_cost = matrix("validation_emergency_cost", 1e4)
+    selected = tune[tune.is_selected].iloc[0]
+    selected_row = betas.index(selected.beta)
+    selected_col = columns.index((selected.M, selected.kappa_mult))
+
+    blue_map = LinearSegmentedColormap.from_list(
+        "cost_blue", ["#F5F8FA", "#C9DCE7", "#557F9A"])
+    warm_map = LinearSegmentedColormap.from_list(
+        "risk_warm", ["#FFF8EB", "#F1CE8A", "#C96F48"])
+
+    fig, axes = plt.subplots(1, 2, figsize=(12.6, 3.0), sharey=True)
+    panels = [
+        (axes[0], total_cost, blue_map, "验证期总费用", "万元"),
+        (axes[1], emergency_cost, warm_map, "紧急购电费用", "万元"),
+    ]
+    xlabels = [f"{m}/{k:g}" for m, k in columns]
+
+    for ax, values, cmap, title, unit in panels:
+        image_obj = ax.imshow(values, cmap=cmap, aspect="auto",
+                              interpolation="nearest")
+        ax.set_title(title, fontsize=11.5, color=INK, pad=8,
+                     fontweight="bold")
+        ax.set_xticks(np.arange(len(columns)), xlabels, fontsize=7.2)
+        ax.set_yticks(np.arange(len(betas)), [f"{b:g}" for b in betas],
+                      fontsize=7.8)
+        ax.set_xlabel("场景数 $M$ / 软终端倍数 $\\lambda$", color=INK,
+                      labelpad=6)
+        ax.tick_params(axis="both", length=0, colors=INK)
+        for x in np.arange(-0.5, len(columns), 1):
+            ax.axvline(x, color="white", lw=0.8, alpha=0.85)
+        for y in np.arange(-0.5, len(betas), 1):
+            ax.axhline(y, color="white", lw=0.8, alpha=0.85)
+        ax.add_patch(Rectangle((selected_col - 0.48, selected_row - 0.48),
+                               0.96, 0.96, fill=False, edgecolor=RED,
+                               linewidth=2.0, zorder=5))
+        ax.scatter(selected_col, selected_row, marker="*", s=82,
+                   color=RED, edgecolors="white", linewidths=0.6, zorder=6)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        cbar = fig.colorbar(image_obj, ax=ax, fraction=0.026, pad=0.018)
+        cbar.set_label(unit, color=INK, fontsize=8)
+        cbar.outline.set_visible(False)
+        cbar.ax.tick_params(length=2, width=0.5, labelsize=7,
+                            color=TICK, labelcolor=INK)
+
+    axes[0].set_ylabel("风险权重 $\\beta$", color=INK)
+    fig.subplots_adjust(left=0.055, right=0.965, bottom=0.19, top=0.88,
+                        wspace=0.16)
     save(fig, "fig_q2_cvar_frontier.png")
 
 
