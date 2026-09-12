@@ -1,0 +1,16 @@
+# Q4-3 入库排除项
+# 原则：复核必需的全部入库（含 intervals/manifest），可重跑的中间产物不入库
+
+# 中间产物：由 prepare_result4.py 生成、build_result3.py 消费，随时可重跑
+# 注意：文件名沿用 Q3 的 result3_payload.json，实为 Q4 的写入载荷
+result3_payload.json
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 虚拟环境
+.deps/
+.venv/
+venv/
