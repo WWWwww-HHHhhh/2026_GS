@@ -43,7 +43,6 @@
 
 \begin{table}[H]
     \centering
-    \label{tab:q1_symbols}
     \begin{tabularx}{0.88\textwidth}
     {@{}>{\centering\arraybackslash}p{0.22\textwidth}
     >{\centering\arraybackslash}X@{}}
@@ -66,6 +65,7 @@
     \end{tabularx}
     \vspace{0.4em}
   \caption{问题一符号说明}
+  \label{tab:q1_symbols}
 \end{table}
 
 \subsection{模型建立}
@@ -154,7 +154,7 @@
     \sum_{t=1}^{T}\pi_t x_t
     \leq C_1^*+\varepsilon,
     \qquad
-    \varepsilon=10^{-4}\,\mathrm{元}
+    \varepsilon=10^{-4}\,\text{元}
     \label{eq:q1_cost_tolerance}
 \end{equation}
 由此得到购电费用最优且充放电过程更简洁的调度方案。
@@ -203,7 +203,7 @@
 \begin{equation}
     C_1^\ast
     =
-    35126.948589\,\mathrm{元}
+    35126.948589\,\text{元}
     \label{eq:q1_stage1_result}
 \end{equation}
 
