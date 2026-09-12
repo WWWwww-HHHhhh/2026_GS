@@ -39,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from q4_common import D, OUT_DATA, REPORT_START, REPORT_END, TABLES, T, load_dataset  # noqa: E402
 
 PRICE_FLOOR = 0.0076   # 附件4 全年最小电价，预测值不得低于该量级（保持价格正性）
+PRIOR_FLAT_PLACEHOLDER = 0.7662  # 仅在未提供先验时的占位常量（= 附件4 全年均价）；主链路传入附件1 典型日曲线
 SHAPE_COLS = None
 
 
@@ -51,8 +52,15 @@ def mae(pred: np.ndarray, actual: np.ndarray) -> float:
     return float(np.mean(np.abs(pred - actual)))
 
 
-def build_candidates(P: np.ndarray, SH: np.ndarray, MU: np.ndarray, dow: np.ndarray, i: int) -> dict:
-    """给出决策日 i 的全部候选预测（只使用 j < i 的数据）。"""
+def build_candidates(P: np.ndarray, SH: np.ndarray, MU: np.ndarray, dow: np.ndarray, i: int,
+                     prior: np.ndarray | None = None) -> dict:
+    """给出决策日 i 的全部候选预测（只使用 j < i 的数据）。
+
+    冷启动（i = 0，无任何历史价格）：
+      禁止使用当天实际价格。口径为**退化为题面自带的典型日曲线（附件1，全年逐时段均值）**——
+      它是题目给定数据，不含 2025 年的未来信息，因此不构成泄露。
+      `prior` 未提供时使用常量占位（仅供脱离主链路单独调用，主链路始终传入附件1 先验）。
+    """
     out: dict[str, np.ndarray] = {}
     if i >= 1:
         out["naive_last"] = P[:, i - 1].copy()
@@ -81,13 +89,22 @@ def build_candidates(P: np.ndarray, SH: np.ndarray, MU: np.ndarray, dow: np.ndar
         if v is not None:
             out[f"sha_dow28_{agg}"] = v
 
-    if not out:  # 冷启动兜底：用全年均值形状（仅 i 极小时触发）
-        out["fallback_mean"] = MU[:max(1, i)].mean() * SH[:, :max(1, i)].mean(axis=1) if i > 0 else P[:, 0].copy()
+    if not out:  # 冷启动兜底（仅 i = 0 触发）
+        if i > 0:
+            out["fallback_hist"] = MU[:i].mean() * SH[:, :i].mean(axis=1)
+        else:
+            if prior is not None:
+                out["fallback_typical_day"] = np.asarray(prior, dtype=float).copy()
+            else:
+                out["fallback_flat_placeholder"] = np.full(T, PRIOR_FLAT_PLACEHOLDER)
     return {k: np.maximum(v, PRICE_FLOOR) for k, v in out.items()}
 
 
-def forecast_all(P: np.ndarray, dates: list) -> tuple[np.ndarray, pd.DataFrame]:
-    """逐日滚动预测，返回 (price_hat (144,365), 选择日志 DataFrame)。"""
+def forecast_all(P: np.ndarray, dates: list, prior: np.ndarray | None = None) -> tuple[np.ndarray, pd.DataFrame]:
+    """逐日滚动预测，返回 (price_hat (144,365), 选择日志 DataFrame)。
+
+    `prior`：无历史价格时的先验曲线（主链路传附件1 的典型日曲线）。只在与冷启动日生效。
+    """
     Dn = P.shape[1]
     MU = P.mean(axis=0)
     SH = P / np.maximum(MU, 1e-12)[None, :]
@@ -99,13 +116,13 @@ def forecast_all(P: np.ndarray, dates: list) -> tuple[np.ndarray, pd.DataFrame]:
         # 1) 模型挑选：评价各候选在 i-1 日的表现（各候选自身的口径仍只用 < i-1 的数据）
         chosen, score_best, wapes_eval = None, np.inf, {}
         if i >= 1:
-            for name, pred_prev in build_candidates(P, SH, MU, dow, i - 1).items():
+            for name, pred_prev in build_candidates(P, SH, MU, dow, i - 1, prior).items():
                 s = wape(pred_prev, P[:, i - 1])
                 wapes_eval[name] = s
                 if s < score_best:
                     chosen, score_best = name, s
         # 2) 用选定模型生成 i 日预测（用截至 i-1 的数据）
-        cands = build_candidates(P, SH, MU, dow, i)
+        cands = build_candidates(P, SH, MU, dow, i, prior)
         if chosen is None or chosen not in cands:
             chosen = sorted(cands.keys())[0] if "naive_last" not in cands else "naive_last"
         hat[:, i] = cands[chosen]
@@ -145,7 +162,8 @@ def main() -> int:
         report_idx = np.asarray(ds["report_idx"], dtype=int)
 
         print(f"[04] 电价预测：{price.shape[1]} 天 × {price.shape[0]} 时段，因果滚动")
-        hat, sel = forecast_all(price, dates)
+        prior = np.asarray(ds["price_q2_fixed"], dtype=float)   # 附件1 典型日曲线（冷启动先验）
+        hat, sel = forecast_all(price, dates, prior=prior)
         res = price - hat
 
         # ---------- 真实性核验 ----------
@@ -160,9 +178,12 @@ def main() -> int:
         max_dev = 0.0
         for r in sel.itertuples():
             i = int(r.i)
-            again = build_candidates(price, SH, MU, dow, i)[r.selected]
+            again = build_candidates(price, SH, MU, dow, i, prior)[r.selected]
             max_dev = max(max_dev, float(np.max(np.abs(again - hat[:, i]))))
         assert max_dev < 1e-12, f"预测与候选模型不一致 max|Δ|={max_dev:.3e}"
+        # 冷启动核验：day0 的预测不得等于当天实际价格（历史上曾因 P[:,0] 兜底而泄露）
+        dev0 = float(np.max(np.abs(hat[:, 0] - price[:, 0])))
+        assert dev0 > 1e-6, f"首日预测仍等于当天实际价格（max|Δ|={dev0:.3e}），冷启动泄露未修复"
 
         # 朴素基线（昨日形状）用于技能对比
         naive = np.zeros_like(price)
@@ -210,6 +231,8 @@ def main() -> int:
             fh.write("- 脚本：`Data_processing/04_q4_price_forecast.py`\n")
             fh.write(f"- 输入：`Data_processing/q4_dataset.pkl` 的 `price`（附件4，{T}×{D}，元/kWh）\n")
             fh.write("- 口径：决策日 i 只用 j<i 的已实现电价；模型挑选用 i−1 日 WAPE；i−1 日候选自身只用 j<i−1\n")
+            fh.write(f"- 冷启动（day0 = {dates[0]}）：无历史价格，**退化为附件1 典型日曲线**（题目给定数据），"
+                     f"不得使用当天实际价格；实测 max|预测−实际| = {dev0:.6f}（>0 即无泄露）\n")
             fh.write("- 候选族：" + out["candidates"] + "\n\n")
             fh.write("## 报告期（2025-02-01~12-31，334 天）整体技能\n\n")
             fh.write(f"| 指标 | 选定模型 | 朴素基线(昨日形状) |\n| --- | --- | --- |\n")

@@ -121,7 +121,7 @@ def save(fig, stem, png=True):
 
 
 parser = argparse.ArgumentParser(description="生成问题一结果图")
-parser.add_argument("--figure", type=int, choices=[1, 2, 3, 4], help="仅生成指定图片")
+parser.add_argument("--figure", type=int, choices=[1, 2, 3, 4, 5], help="仅生成指定图片")
 args = parser.parse_args()
 
 if args.figure in (None, 1):
@@ -341,5 +341,104 @@ if args.figure in (None, 4):
               handlelength=1.6, columnspacing=1.4)
     fig.subplots_adjust(left=0.10, right=0.99, bottom=0.125, top=0.865)
     save(fig, "q1_fig4_marginal_value")
+
+if args.figure in (None, 5):
+    # 图5（论文正文用合并图）：上panel 输入特性、下panel 调度结果，共享时刻轴。
+    # 合并目的：论文 6.2 只需一张图即可同时交代输入特性与调度结果，
+    # 省掉一套图注与一套横轴刻度；正文以 (a)、(b) 分别引用两个面板。
+    load = (d.L_kwh / DT / 1000).to_numpy()
+    pv = (d.G_kwh / DT / 1000).to_numpy()
+    net = ((d.L_kwh - d.G_kwh) / DT / 1000).to_numpy()
+    price = d.price.to_numpy()
+
+    grid = d.x_plan_kwh.to_numpy()
+    pv_use = (d.G_kwh - d.w_curtail_kwh).to_numpy()
+    discharge = d.r_discharge_kwh.to_numpy()
+    load_kwh = d.L_kwh.to_numpy()
+    charge = d.c_charge_kwh.to_numpy()
+    edges = np.arange(len(d) + 1) * DT
+    extend = lambda values: np.r_[values, values[-1]]
+
+    fig, (axa, axb) = plt.subplots(
+        2, 1, figsize=(7.0, 4.5), sharex=True,
+        gridspec_kw={"height_ratios": [1.12, 1.0], "hspace": 0.26})
+
+    # ------------------------------------------------ (a) 输入特性
+    axa2 = axa.twinx()
+    hi_price = mask_runs(price > 0.9)
+    for lo, hi in hi_price:
+        axa.axvspan(lo, hi, color=C_PRICE, alpha=0.07, lw=0, zorder=0)
+
+    gradient_fill(axa, hours, pv, 0.0, C_PV, zorder=1)
+    axa.plot(hours, pv, color=C_PV, lw=1.1, zorder=2)
+    axa.fill_between(hours, net, 0, where=net < 0, color=C_NET, alpha=0.32,
+                     lw=0, interpolate=True, zorder=2)
+    axa.plot(hours, net, color=C_NET, lw=1.8, zorder=4)
+    axa.plot(hours, load, color=C_LOAD, lw=2.0, zorder=5,
+             path_effects=[pe.Stroke(linewidth=3.4, foreground="white"), pe.Normal()])
+    axa.axhline(0, color=C_SPINE, lw=0.7, zorder=3)
+    axa2.plot(hours, price, color=C_PRICE, lw=1.7, zorder=3)
+
+    i_pk, i_tr = int(np.argmax(price)), int(np.argmin(price))
+    for idx, txt, off, ha in ((i_pk, f"峰价 {price[i_pk]:.3f}", (0, 9), "center"),
+                              (i_tr, f"谷价 {price[i_tr]:.3f}", (-7, 8), "right")):
+        axa2.plot([hours[idx]], [price[idx]], marker="o", ms=4.2, mfc="white",
+                  mec=C_PRICE, mew=1.2, zorder=6)
+        axa2.annotate(txt, xy=(hours[idx], price[idx]), xytext=off,
+                      textcoords="offset points", ha=ha, fontsize=8, color=C_PRICE)
+
+    axa.set_ylabel("功率 / MW", color=C_LOAD)
+    axa2.set_ylabel("电价 / (元/kWh)", color=C_PRICE)
+    axa.set_ylim(-2.9, 8.4)
+    axa.set_yticks(range(-2, 9, 2))
+    axa2.set_ylim(0, 1.72)
+    axa2.set_yticks(np.arange(0.0, 1.61, 0.4))
+    tidy(axa)
+    axa2.tick_params(axis="y", length=3, color=C_TICK, labelsize=9,
+                     labelcolor=C_PRICE)
+    for side in ["top", "left"]:
+        axa2.spines[side].set_visible(False)
+    axa2.spines["right"].set_color(C_SPINE)
+    axa2.spines["right"].set_linewidth(0.6)
+
+    handles_a = [
+        Line2D([], [], color=C_LOAD, lw=2.0, label="小区负载"),
+        Patch(facecolor=C_PV, alpha=0.75, edgecolor=C_PV, label="光伏预测"),
+        Line2D([], [], color=C_NET, lw=2.0, label="净负荷"),
+        Line2D([], [], color=C_PRICE, lw=1.8, label="电价"),
+    ]
+    axa.legend(handles=handles_a, ncol=4, frameon=False, fontsize=8.5,
+               loc="lower center", bbox_to_anchor=(0.5, 1.005), borderaxespad=0,
+               handlelength=1.7, columnspacing=1.9)
+    if hi_price:
+        mid = max(hi_price, key=lambda se: se[1] - se[0])
+        axa.annotate("高电价时段", xy=((mid[0] + mid[1]) / 2, 7.75), ha="center",
+                     va="center", fontsize=8, color=C_PRICE)
+
+    # ------------------------------------------------ (b) 调度结果
+    axb.stackplot(
+        edges, extend(grid), extend(pv_use), extend(discharge),
+        step="post", colors=["#8BAFC9", "#E7C478", "#76B3A6"],
+        labels=["外网购电", "光伏利用", "储能放电"],
+        linewidth=0, alpha=0.95, zorder=2,
+    )
+    axb.step(
+        edges, extend(load_kwh), where="post", color="#283C4A", lw=1.5,
+        label="小区负荷", zorder=4,
+        path_effects=[pe.Stroke(linewidth=2.8, foreground="white"), pe.Normal()],
+    )
+    axb.set_ylabel("时段电量 / kWh")
+    axb.set_ylim(0, (grid + pv_use + discharge).max() * 1.06)
+    tidy(axb)
+    axb.legend(ncol=4, frameon=False, fontsize=9, loc="lower center",
+               bbox_to_anchor=(0.5, 1.005), borderaxespad=0, handlelength=1.6)
+    axb.set_xlabel("时刻 / h", color=C_TEXT)
+
+    for ax, tag in ((axa, "(a)"), (axb, "(b)")):
+        ax.annotate(tag, xy=(0.006, 0.965), xycoords="axes fraction",
+                    ha="left", va="top", fontsize=9.5, color=C_TEXT)
+
+    fig.subplots_adjust(left=0.095, right=0.905, bottom=0.095, top=0.955)
+    save(fig, "q1_fig_input_dispatch")
 
 print("已生成图片：", args.figure if args.figure else "全部", "，目录：", FIG)

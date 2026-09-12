@@ -24,6 +24,7 @@ from q3_core import CAP, ETA_C, ETA_D, M, Q2, SOC_MAX, SOC_MIN, STRATEGIES, T, S
 
 HERE = Path(__file__).resolve().parent
 ATOL = 2e-5
+PRICE_FORECAST = HERE.parents[1] / "Q4_wyh" / "Data_processing" / "price_forecast.pkl"
 
 
 def close(a, b, label: str, tol: float = ATOL) -> float:
@@ -166,6 +167,14 @@ def main() -> None:
     from q4_data import load_q4_price
     data.price=load_q4_price()  # Q4: 用附件4波动电价校验
     metadata=json.loads((args.folder/"run_metadata.json").read_text(encoding="utf-8"))
+    # Q4-3 may not expose the target day's future realised price to its LP.
+    # The runner records the causal forecast artifact so this information-set
+    # choice is independently auditable from the result folder.
+    if "causal day-ahead forecast" not in metadata.get("price_information", ""):
+        raise AssertionError("Q4 price information timing is not declared causal")
+    price_hash = hashlib.sha256(PRICE_FORECAST.read_bytes()).hexdigest()
+    if metadata.get("source_hashes", {}).get("causal_price_forecast_sha256") != price_hash:
+        raise AssertionError("Q4 causal price-forecast artifact changed or is not recorded")
     q2_book=Q2/"Results"/"Tables"/"result2.xlsx"
     actual_hash=hashlib.sha256(q2_book.read_bytes()).hexdigest()
     if metadata["source_hashes"]["q2_result2_sha256"]!=actual_hash:

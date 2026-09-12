@@ -104,11 +104,20 @@ def structural_checks(res: dict, ds: dict) -> tuple[list[dict], list[str]]:
 
 # ----------------------------------------------------------------- 基线
 def run_b0_perfect_foresight(ds: dict, res: dict) -> dict:
-    """完美预见：逐日 M=1、用当天实际价格/负荷/光伏求解，SOC 链与主模型同起点。"""
+    """完美信息对照方案：逐日 M=1、用当天实际价格/负荷/光伏求解，SOC 链与主模型同起点。
+
+    ⚠️ 术语纪律：它**不是**严格的数学下界。原因有三：
+      1) 每日独立求解、只通过 SOC 链耦合，未对整段报告期做全局最优；
+      2) 目标里仍保留软终端惩罚 κ·|ξ|，而结算的真实费用不含该项；
+      3) 电池充放电仍走同一套策略结构。
+    因此对外一律称"完美信息对照方案"，其与主模型的差额是"相对该对照方案的费用差"，
+    包含终端惩罚、逐日求解与策略结构的共同影响，**不等于纯信息成本**。
+    """
     logs = res["report_logs"]
     s0 = float(logs[0]["s0"])
     kappa = float(res["params"]["kappa2"])
     total = 0.0
+    emg_cost = 0.0
     for l in logs:
         i = l["day_index"]
         P = ds["price"][:, i][None, :]; L = ds["load"][:, i][None, :]; G = ds["pv"][:, i][None, :]
@@ -118,8 +127,9 @@ def run_b0_perfect_foresight(ds: dict, res: dict) -> dict:
         plan = solve_day(P, L, G, s0, kw)
         st = settle_day(ds["price"][:, i], plan["x"], plan["c"], plan["r"], L[0], G[0], s0)
         s0 = float(st["s_actual"][-1])
-        total += st["cost_total"]
-    return {"name": "B0 完美预见下界", "cost": total}
+        total += st["cost_total"]; emg_cost += st["cost_emergency"]
+    return {"name": "B0 完美信息对照方案（当日实际值，逐日求解）", "cost": total,
+            "emergency_cost": emg_cost}
 
 
 def run_b1_fixed_price(ds: dict, res: dict, scen: dict) -> dict:
@@ -129,6 +139,7 @@ def run_b1_fixed_price(ds: dict, res: dict, scen: dict) -> dict:
     params = {"kappa2": float(res["params"]["kappa2"]), "beta": float(res["params"]["beta"]),
               "alpha": float(res["params"]["alpha"])}
     total = 0.0
+    emg_cost = 0.0
     for l in logs:
         i = l["day_index"]
         P = np.tile(ds["price_q2_fixed"][None, :], (scen["M"], 1))
@@ -139,12 +150,17 @@ def run_b1_fixed_price(ds: dict, res: dict, scen: dict) -> dict:
         st = settle_day(ds["price"][:, i], plan["x"], plan["c"], plan["r"],
                         ds["load"][:, i], ds["pv"][:, i], s0)
         s0 = float(st["s_actual"][-1])
-        total += st["cost_total"]
-    return {"name": "B1 Q2固定价策略（实际波动价结算）", "cost": total}
+        total += st["cost_total"]; emg_cost += st["cost_emergency"]
+    return {"name": "B1 Q2固定价策略（实际波动价结算）", "cost": total, "emergency_cost": emg_cost}
 
 
 def run_b2_realtime_gap(ds: dict, res: dict) -> dict:
-    """B2 朴素规则：不做日前优化，也不动储能，按实时缺口购电。"""
+    """B2 **假想情景**：实时市场即时购电（无 0:00 计划承诺、可按实时价即时买入缺口），且不动储能。
+
+    ⚠️ 命名纪律：本情景**不是题目规则下的可执行策略**。题面规定"微网供电低于负载时按交易时刻电价的
+    5 倍紧急购电"，若完全没有 0:00 计划，则全部用能都应按 5 倍结算 —— 那是下方 B2' 的口径。
+    B2 只用于给出"完全不做日前优化、但能在实时市场按平价即时成交"这一假想下的费用量级。
+    """
     logs = res["report_logs"]
     total = 0.0
     for l in logs:
@@ -152,7 +168,25 @@ def run_b2_realtime_gap(ds: dict, res: dict) -> dict:
         price = ds["price"][:, i]; L = ds["load"][:, i]; G = ds["pv"][:, i]
         gap = np.maximum(L - G, 0.0)
         total += float(np.sum(price * gap))
-    return {"name": "B2 实时缺口购电（不动储能）", "cost": total}
+    return {"name": "B2 实时市场即时购电（假想：无 0:00 计划承诺，按实时价成交）", "cost": total}
+
+
+def run_b2p_all_emergency(ds: dict, res: dict) -> dict:
+    """B2' **题目规则口径**：无日前计划 ⇒ 全部用能均按紧急购电结算，即 5 × Σ λ·(L−PV)⁺。
+
+    这才是"完全不制定计划"在题面规则下的真实代价，与 B2 并列呈现，两者语义差别明确。
+    """
+    logs = res["report_logs"]
+    total = 0.0
+    emg_kwh = 0.0
+    for l in logs:
+        i = l["day_index"]
+        price = ds["price"][:, i]; L = ds["load"][:, i]; G = ds["pv"][:, i]
+        gap = np.maximum(L - G, 0.0)
+        total += float(np.sum(5.0 * price * gap))
+        emg_kwh += float(np.sum(gap))
+    return {"name": "B2' 无计划·全额紧急购电（题目规则 5× 交易时刻电价）", "cost": total,
+            "emergency_kwh": emg_kwh}
 
 
 def run_b3_typical_day(ds: dict, res: dict) -> dict:
@@ -171,13 +205,14 @@ def run_b3_typical_day(ds: dict, res: dict) -> dict:
         c[a:b] = float(pd.to_numeric(stor.iloc[k, 1], errors="coerce") or 0.0) / (b - a)
         r[a:b] = float(pd.to_numeric(stor.iloc[k, 2], errors="coerce") or 0.0) / (b - a)
     total = 0.0
+    emg_cost = 0.0
     s0 = SOC0
     for l in res["report_logs"]:
         i = l["day_index"]
         st = settle_day(ds["price"][:, i], x, c, r, ds["load"][:, i], ds["pv"][:, i], s0)
         s0 = SOC0  # Q1 典型日策略保证 0:00 与 24:00 储电量相同，日间不传递
-        total += st["cost_total"]
-    return {"name": "B3 典型日(Q1)策略", "cost": total}
+        total += st["cost_total"]; emg_cost += st["cost_emergency"]
+    return {"name": "B3 典型日(Q1)策略", "cost": total, "emergency_cost": emg_cost}
 
 
 def r1_vs_r2(res: dict) -> pd.DataFrame:
@@ -218,18 +253,28 @@ def main() -> int:
 
         print("[B] 基线对比（全部重跑，非引用既有数字）")
         base = [run_b0_perfect_foresight(ds, res), run_b1_fixed_price(ds, res, scen),
-                run_b2_realtime_gap(ds, res), run_b3_typical_day(ds, res)]
+                run_b2_realtime_gap(ds, res), run_b2p_all_emergency(ds, res),
+                run_b3_typical_day(ds, res)]
         main_cost = float(sum(l["cost_total"] for l in res["report_logs"]))
         emg = float(sum(l["cost_emergency"] for l in res["report_logs"]))
-        bros = [["Q4-2 主模型（波动电价随机规划）", main_cost, 0.0, emg]]
-        b0 = base[0]["cost"]
+        b0 = float(base[0]["cost"])
+        # 修正：主模型行的"相对增量"必须等于 main_cost − b0，不得写死 0
+        bros = [["Q4-2 主模型（波动电价随机规划）", main_cost, main_cost - b0, emg]]
         for b in base:
-            gap = (b["cost"] - b0) if np.isfinite(b["cost"]) else float("nan")
-            bros.append([b["name"], b["cost"], gap, float("nan")])
-            print(f"    {b['name']}: {b['cost']:,.2f} 元"
-                  + (f"（较完美预见下界 +{b['cost']-b0:,.2f}）" if np.isfinite(b["cost"]) else f" {b.get('note','')}"))
-        print(f"    主模型较完美预见下界 +{main_cost - b0:,.2f} 元（gap {(main_cost - b0)/b0*100:.2f}%）")
-        base_df = pd.DataFrame(bros, columns=["方案", "报告期总费用(元)", "较完美预见下界增量(元)", "其中紧急购电费(元)"])
+            cost = b["cost"]
+            gap = (cost - b0) if np.isfinite(cost) else float("nan")
+            if b["name"].startswith("B2'"):
+                emgc = cost                      # 全额按紧急购电结算，紧急购电费即总额
+            else:
+                emgc = float(b.get("emergency_cost", float("nan")))
+            bros.append([b["name"], cost, gap, emgc])
+            print(f"    {b['name']}: {cost:,.2f} 元"
+                  + (f"（相对完美信息对照方案 +{cost - b0:,.2f}）" if np.isfinite(cost) else f" {b.get('note','')}"))
+        print(f"    主模型相对完美信息对照方案的费用差 = {main_cost - b0:,.2f} 元"
+              f"（{(main_cost - b0)/b0*100:.2f}%）；该差值含终端惩罚、逐日求解与策略结构的共同影响，"
+              f"不等于纯信息成本")
+        base_df = pd.DataFrame(bros, columns=["方案", "报告期总费用(元)",
+                                              "相对完美信息对照方案的费用差(元)", "其中紧急购电费(元)"])
 
         print("[C] 结算口径 R1 vs R2")
         rr = r1_vs_r2(res)
@@ -313,8 +358,13 @@ def main() -> int:
                   "## B 基线对比", "",
                   md_table(base_df.values.tolist(), list(base_df.columns)),
                   "",
-                  f"主模型报告期总费用 {main_cost:,.2f} 元，较 B0 完美预见下界高 {main_cost - b0:,.2f} 元"
-                  f"（{(main_cost - b0) / b0 * 100:.2f}%）；其中紧急购电费 {emg:,.2f} 元。", "",
+                  f"主模型报告期总费用 {main_cost:,.2f} 元，相对 B0 完美信息对照方案的费用差为 "
+                  f"{main_cost - b0:,.2f} 元（{(main_cost - b0) / b0 * 100:.2f}%）。"
+                  f"**该差值不等于纯信息成本**：B0 逐日独立求解、只经 SOC 链耦合，且目标中保留软终端惩罚、"
+                  f"沿用同一套策略结构，因此它是对照方案而非严格数学下界；其中主模型紧急购电费 {emg:,.2f} 元。", "",
+                  "口径说明：**B2 是假想情景**（无 0:00 计划承诺、可按实时价即时成交），"
+                  "**B2' 才是题面规则下「完全不制定计划」的口径**（全部用能按交易时刻电价 5 倍紧急购电）。"
+                  "两者并列，语义差别明确，不可混用。", "",
                   "## C 结算口径对照", "",
                   f"- R1（实际波动价）：{rr['cost_plan_R1'].sum():,.2f} 元（主口径）",
                   f"- R2（0:00 预测价）：{rr['cost_plan_R2'].sum():,.2f} 元",

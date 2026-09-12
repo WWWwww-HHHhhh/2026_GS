@@ -24,16 +24,19 @@
 
 | 指标 | 数值 | 出处 |
 | --- | --- | --- |
-| B0 完美预见下界（元） | 12,829,244.96 | q4_2_experiments.csv |
+| B0 完美信息对照方案（元） | 12,829,244.96 | q4_2_experiments.csv |
+| B0 术语纪律 | B0 逐日独立求解、只经 SOC 链耦合且保留软终端惩罚 ⇒ 是对照方案，不是严格数学下界 | q4_2_experiments_report.md |
 | B0 日费用 CVaR90（元） | 66,186.28 | q4_2_experiments.csv |
-| 主模型相对 B0 的最优性 gap | 21.30% | 计算 |
+| 主模型相对 B0 的费用差 | 21.30%（含终端惩罚/逐日求解/策略结构影响，不等于纯信息成本） | 计算 |
 | B1 Q2固定价策略总费用（元） | 15,499,485.65 | q4_2_experiments.csv |
 | B1 计划购电费（元） | 13,750,656.76 | q4_2_timing_main_vs_b1.csv |
 | B1 紧急购电费（元） | 1,748,828.89 | 总费用 − 计划购电费 |
 | B1 平均购电单价（元/kWh） | 0.6056 | q4_2_timing_main_vs_b1.csv |
 | B1 紧急购电平均单价（元/kWh） | 8.0359 | 紧急费 ÷ 紧急量 |
 | B1 紧急购电费 ÷ 主模型紧急购电费 | 1.96 倍 | 计算 |
-| B2 实时缺口购电（元） | 17,026,782.86 | q4_2_experiments.csv |
+| B2 实时市场即时购电（假想情景，元） | 17,026,782.86 | q4_2_experiments.csv |
+| B2' 无计划·全额紧急购电（题目规则 5×，元） | 85,133,914.29 | q4_2_experiments.csv |
+| B2' 紧急购电量（kWh） | 20,997,349.41 | q4_2_experiments.csv |
 | B3 典型日(Q1)策略（元） | 51,218,227.37 | q4_2_experiments.csv |
 
 ## 稳健性·β
@@ -83,3 +86,25 @@
 | 结构核验通过项数 | 9/9 | q4_2_structural_checks.csv |
 | 导出回读校验 | 8/8 PASS | q4_2_export_verify.md |
 | 全量提取口径 y≡x 可行性 | 不可行：334/334 天出现计划量超过实际需要，累计未提取 1,639,609.3 kWh（占计划量 7.19%） | q4_2_experiments_report.md |
+
+## 方案C·双口径
+
+| 指标 | 数值 | 出处 |
+| --- | --- | --- |
+| V_cap8000（q2/unknown/legacy） | 总费用 15,553,010 元；紧急费 958,128 元；CVaR90 77,150 元；选中 (20, 0.2, 1.0) | V_cap8000_summary.csv |
+| V_official_known（official/known/risk_aware） | 总费用 15,479,036 元；紧急费 1,146,905 元；CVaR90 76,890 元；选中 (20, 0.01, 0.25) | V_official_known_summary.csv |
+| V_official_unknown（official/unknown/risk_aware） | 总费用 15,621,548 元；紧急费 1,146,070 元；CVaR90 77,329 元；选中 (20, 0.0, 0.25) | V_official_unknown_summary.csv |
+| V_q2_known（q2/known/risk_aware） | 总费用 15,252,994 元；紧急费 1,076,908 元；CVaR90 76,394 元；选中 (30, 0.01, 0.25) | V_q2_known_summary.csv |
+| V_q2_unknown_risk（q2/unknown/risk_aware） | 总费用 15,444,173 元；紧急费 1,098,314 元；CVaR90 76,786 元；选中 (20, 0.0, 0.25) | V_q2_unknown_risk_summary.csv |
+
+## 方案C·价格信息价值
+
+| 指标 | 数值 | 出处 |
+| --- | --- | --- |
+| 「价格 0:00 未知 − 已知」（q2 预报源，同选参规则） | 191,179 元（1.25%） | V_q2_unknown_risk vs V_q2_known |
+
+## 方案C·预报源差异
+
+| 指标 | 数值 | 出处 |
+| --- | --- | --- |
+| 「附件3 官方 − Q2 自建」（价格口径 unknown，同选参规则） | +177,375 元 | V_official_unknown vs V_q2_unknown_risk |

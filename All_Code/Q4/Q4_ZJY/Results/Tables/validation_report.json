@@ -8,7 +8,7 @@
       "slots": 48096,
       "issues": 334,
       "scenario_rows": 10020,
-      "total_cost_yuan": 15499059.003260508,
+      "total_cost_yuan": 15746005.832569197,
       "max_independent_residual": 1.862645149230957e-09,
       "all_checks_passed": true
     },
@@ -18,8 +18,8 @@
       "slots": 48096,
       "issues": 668,
       "scenario_rows": 20040,
-      "total_cost_yuan": 15314155.572793793,
-      "max_independent_residual": 3.725290298461914e-09,
+      "total_cost_yuan": 15511017.444025595,
+      "max_independent_residual": 1.862645149230957e-09,
       "all_checks_passed": true
     },
     {
@@ -28,7 +28,7 @@
       "slots": 48096,
       "issues": 668,
       "scenario_rows": 20040,
-      "total_cost_yuan": 15278434.473527823,
+      "total_cost_yuan": 15526460.89371447,
       "max_independent_residual": 1.862645149230957e-09,
       "all_checks_passed": true
     },
@@ -38,8 +38,8 @@
       "slots": 48096,
       "issues": 668,
       "scenario_rows": 20040,
-      "total_cost_yuan": 15507242.909968132,
-      "max_independent_residual": 8.731149137020111e-11,
+      "total_cost_yuan": 15753029.392939035,
+      "max_independent_residual": 1.862645149230957e-09,
       "all_checks_passed": true
     },
     {
@@ -48,7 +48,7 @@
       "slots": 48096,
       "issues": 1002,
       "scenario_rows": 30060,
-      "total_cost_yuan": 15137156.787540931,
+      "total_cost_yuan": 15358037.803259166,
       "max_independent_residual": 1.862645149230957e-09,
       "all_checks_passed": true
     },
@@ -58,7 +58,7 @@
       "slots": 48096,
       "issues": 1336,
       "scenario_rows": 40080,
-      "total_cost_yuan": 15138138.515634516,
+      "total_cost_yuan": 15355290.646485314,
       "max_independent_residual": 1.862645149230957e-09,
       "all_checks_passed": true
     }
@@ -68,6 +68,7 @@
     "attachment1_sha256": "66b87134f5ecccd68184d3539bb1293ef039f9e0fdd955a589b9bfa7f227c377",
     "attachment2_sha256": "2e95fd446bfafa0d8c59577b5c2e2ea8b3f1def20dde54a3062556f4da9b4c72",
     "attachment3_sha256": "8a61b06c52bd0d639a1cc37c61a7d9f5b75edcbca718f64c1bd3498ec9f9d843",
-    "attachment4_sha256": "20e9c93aeab5e8e21ae4dd15587f9e190f7408692504c1319598461cd654fe71"
+    "attachment4_sha256": "20e9c93aeab5e8e21ae4dd15587f9e190f7408692504c1319598461cd654fe71",
+    "causal_price_forecast_sha256": "05f5c52d33abbddc46a53d57fff29caf85e61beb4d3f46240d6037cc28f24b92"
   }
 }
