@@ -3,6 +3,7 @@
 - 脚本：`Data_processing/04_q4_price_forecast.py`
 - 输入：`Data_processing/q4_dataset.pkl` 的 `price`（附件4，144×365，元/kWh）
 - 口径：决策日 i 只用 j<i 的已实现电价；模型挑选用 i−1 日 WAPE；i−1 日候选自身只用 j<i−1
+- 冷启动（day0 = 2025-01-01）：无历史价格，**退化为附件1 典型日曲线**（题目给定数据），不得使用当天实际价格；实测 max|预测−实际| = 0.426000（>0 即无泄露）
 - 候选族：naive_last, naive_dow7, shape{mean,med}{7,14,28}, sha_dow28_{mean,med}
 
 ## 报告期（2025-02-01~12-31，334 天）整体技能
@@ -50,4 +51,4 @@
 | shapemean7 | 4 |
 | shapemean28 | 3 |
 | shapemean14 | 2 |
-| fallback_mean | 1 |
+| fallback_typical_day | 1 |

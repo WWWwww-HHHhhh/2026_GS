@@ -114,27 +114,51 @@ def run_b0(ds, res) -> dict:
                         ds["load"][:, i], ds["pv"][:, i], s0)
         s0 = float(st["s_actual"][-1]); costs.append(st["cost_total"])
     c = np.asarray(costs); k = max(1, int(round(0.10 * len(c))))
-    return {"实验": "B0 完美预见下界（下界）", "总费用(元)": float(c.sum()), "日均费用(元)": float(c.mean()),
+    return {"实验": "B0 完美信息对照方案（当日实际值，逐日求解）", "总费用(元)": float(c.sum()),
+            "日均费用(元)": float(c.mean()),
             "日费用标准差(元)": float(c.std(ddof=1)), "日费用CVaR90(元)": float(np.sort(c)[-k:].mean()),
             "日费用最大值(元)": float(c.max()), "紧急购电率(%)": float("nan"),
             "未提取计划比例(%)": float("nan"), "弃光率(%)": float("nan"),
-            "紧急购电量(kWh)": float("nan"), "期末SOC(kWh)": s0, "历时(s)": time.time() - t0}
+            "紧急购电量(kWh)": float("nan"), "期末SOC(kWh)": s0, "历时(s)": time.time() - t0,
+            "备注": "术语纪律：B0 逐日独立求解、只经 SOC 链耦合，且保留软终端惩罚，"
+                    "是对照方案而非严格数学下界"}
 
 
 def run_b2(ds, res) -> dict:
-    logs = res["report_logs"]; costs = []; emg = 0.0; load = 0.0
+    """B2 假想情景：实时市场即时购电（无 0:00 计划承诺、可按实时价即时成交），不动储能。"""
+    logs = res["report_logs"]; costs = []
     for l in logs:
         i = l["day_index"]
         price = ds["price"][:, i]; L = ds["load"][:, i]; G = ds["pv"][:, i]
         gap = np.maximum(L - G, 0.0)
         costs.append(float(np.sum(price * gap)))
-        load += float(np.sum(L))
     c = np.asarray(costs); k = max(1, int(round(0.10 * len(c))))
-    return {"实验": "B2 实时缺口购电（不动储能）", "总费用(元)": float(c.sum()), "日均费用(元)": float(c.mean()),
+    return {"实验": "B2 实时市场即时购电（假想：无 0:00 计划承诺）", "总费用(元)": float(c.sum()),
+            "日均费用(元)": float(c.mean()),
             "日费用标准差(元)": float(c.std(ddof=1)), "日费用CVaR90(元)": float(np.sort(c)[-k:].mean()),
             "日费用最大值(元)": float(c.max()), "紧急购电率(%)": 0.0,
             "未提取计划比例(%)": 0.0, "弃光率(%)": float("nan"), "紧急购电量(kWh)": 0.0,
-            "期末SOC(kWh)": SOC0, "历时(s)": 0.0}
+            "期末SOC(kWh)": SOC0, "历时(s)": 0.0,
+            "备注": "假想情景：题目规则下若无 0:00 计划则全部用能按 5 倍紧急购电，见 B2'"}
+
+
+def run_b2p(ds, res) -> dict:
+    """B2' 题目规则口径：无日前计划 ⇒ 全部用能按 5× 交易时刻电价紧急购电。"""
+    logs = res["report_logs"]; costs = []; emg = 0.0; load = 0.0
+    for l in logs:
+        i = l["day_index"]
+        price = ds["price"][:, i]; L = ds["load"][:, i]; G = ds["pv"][:, i]
+        gap = np.maximum(L - G, 0.0)
+        costs.append(float(np.sum(5.0 * price * gap)))
+        emg += float(np.sum(gap)); load += float(np.sum(L))
+    c = np.asarray(costs); k = max(1, int(round(0.10 * len(c))))
+    return {"实验": "B2' 无计划·全额紧急购电（题目规则 5× 交易时刻电价）", "总费用(元)": float(c.sum()),
+            "日均费用(元)": float(c.mean()),
+            "日费用标准差(元)": float(c.std(ddof=1)), "日费用CVaR90(元)": float(np.sort(c)[-k:].mean()),
+            "日费用最大值(元)": float(c.max()), "紧急购电率(%)": emg / load * 100,
+            "未提取计划比例(%)": 0.0, "弃光率(%)": float("nan"), "紧急购电量(kWh)": emg,
+            "期末SOC(kWh)": SOC0, "历时(s)": 0.0,
+            "备注": "这才是题面规则下「完全不制定计划」的真实代价：全部用能按 5 倍紧急购电"}
 
 
 def run_b3(ds, res) -> dict:
@@ -218,8 +242,9 @@ def main() -> int:
 
         add("主模型 Q4-2（选中配置）", lambda: run_report(
             ds, res, scen, beta=beta0, kappa2=kappa0, M=M0, label="主模型 Q4-2（选中配置）"))
-        add("B0 完美预见下界（下界）", lambda: run_b0(ds, res))
-        add("B2 实时缺口购电（不动储能）", lambda: run_b2(ds, res))
+        add("B0 完美信息对照方案（当日实际值，逐日求解）", lambda: run_b0(ds, res))
+        add("B2 实时市场即时购电（假想：无 0:00 计划承诺）", lambda: run_b2(ds, res))
+        add("B2' 无计划·全额紧急购电（题目规则 5× 交易时刻电价）", lambda: run_b2p(ds, res))
         add("B3 典型日(Q1)策略", lambda: run_b3(ds, res))
         add("B4 全量提取口径（y≡x）—— 不可行诊断", lambda: diagnostic_full_extraction(res))
 
@@ -269,10 +294,14 @@ def main() -> int:
             for lab, nt in notes:
                 lines.append(f"- **{lab}**：{nt}")
         lines += ["", "## 关键读法", "",
-                  f"1. **最优性 gap**：主模型 {main_row['总费用(元)']:,.0f} 元 vs 完美预见下界 "
-                  f"{b0['总费用(元)']:,.0f} 元，gap = "
+                  f"1. **相对完美信息对照方案的费用差**：主模型 {main_row['总费用(元)']:,.0f} 元 vs "
+                  f"B0 完美信息对照方案 {b0['总费用(元)']:,.0f} 元，差 = "
                   f"{(main_row['总费用(元)'] - b0['总费用(元)']) / b0['总费用(元)'] * 100:.2f}%。"
-                  "该 gap 来自「0:00 电价未知 + 负荷/光伏预测误差」的信息缺口，是不可避免的信息成本。",
+                  "**注意术语**：B0 逐日独立求解、只经 SOC 链耦合，且目标中保留软终端惩罚并沿用同一策略结构，"
+                  "因此它是**对照方案而非严格数学下界**；该差值包含终端惩罚、逐日求解与策略结构的共同影响，"
+                  "**不应全部归因于「电价未知 + 预测误差」的信息缺口**。",
+                  "2. **不做计划的两种口径**：B2 是假想情景（无 0:00 计划承诺但可按实时价即时成交）；"
+                  "B2' 才是题面规则口径（全部用能按 5 倍紧急购电）。论文引用时必须写明用的是哪一个。",
                   "2. **波动电价建模的价值**：与 B1（Q2 固定价策略）比较时必须同时看总费用与日费用 CVaR90。"
                   "若主模型总费用略高但 CVaR90 更低，则其价值体现在风险控制而非均值；若两者接近，"
                   "则说明该题结构下日内价格形状的可预测性很高，真正不可对冲的是日级价格水平"

@@ -43,7 +43,8 @@ def main() -> int:
         return m.iloc[0]
 
     main_r = row("主模型")
-    b0, b1, b2, b3 = row("B0"), row("B1"), row("B2"), row("B3")
+    b0, b1 = row("B0"), row("B1")
+    b2, b2p, b3 = row("B2 实时市场"), row("B2'"), row("B3")
 
     # ---- 主模型 ----
     tot = float(main_r["总费用(元)"])
@@ -66,9 +67,13 @@ def main() -> int:
     add("主模型", "弃光率", f"{float(main_r['弃光率(%)']):.2f}%", "q4_2_experiments.csv")
 
     # ---- 基线 ----
-    add("基线", "B0 完美预见下界（元）", f"{float(b0['总费用(元)']):,.2f}", "q4_2_experiments.csv")
+    add("基线", "B0 完美信息对照方案（元）", f"{float(b0['总费用(元)']):,.2f}", "q4_2_experiments.csv")
+    add("基线", "B0 术语纪律",
+        "B0 逐日独立求解、只经 SOC 链耦合且保留软终端惩罚 ⇒ 是对照方案，不是严格数学下界",
+        "q4_2_experiments_report.md")
     add("基线", "B0 日费用 CVaR90（元）", f"{float(b0['日费用CVaR90(元)']):,.2f}", "q4_2_experiments.csv")
-    add("基线", "主模型相对 B0 的最优性 gap", f"{(tot - float(b0['总费用(元)'])) / float(b0['总费用(元)']) * 100:.2f}%", "计算")
+    add("基线", "主模型相对 B0 的费用差", f"{(tot - float(b0['总费用(元)'])) / float(b0['总费用(元)']) * 100:.2f}%"
+        "（含终端惩罚/逐日求解/策略结构影响，不等于纯信息成本）", "计算")
     add("基线", "B1 Q2固定价策略总费用（元）", f"{float(b1['总费用(元)']):,.2f}", "q4_2_experiments.csv")
     b1_plan = float(timing[timing["方案"].str.startswith("B1")]["计划购电费(实际波动价,元)"].iloc[0])
     b1_emg_kwh = float(b1["紧急购电量(kWh)"])
@@ -79,7 +84,10 @@ def main() -> int:
         "q4_2_timing_main_vs_b1.csv")
     add("基线", "B1 紧急购电平均单价（元/kWh）", f"{b1_emg_cost / b1_emg_kwh:.4f}", "紧急费 ÷ 紧急量")
     add("基线", "B1 紧急购电费 ÷ 主模型紧急购电费", f"{b1_emg_cost / emg_cost:.2f} 倍", "计算")
-    add("基线", "B2 实时缺口购电（元）", f"{float(b2['总费用(元)']):,.2f}", "q4_2_experiments.csv")
+    add("基线", "B2 实时市场即时购电（假想情景，元）", f"{float(b2['总费用(元)']):,.2f}", "q4_2_experiments.csv")
+    add("基线", "B2' 无计划·全额紧急购电（题目规则 5×，元）", f"{float(b2p['总费用(元)']):,.2f}",
+        "q4_2_experiments.csv")
+    add("基线", "B2' 紧急购电量（kWh）", f"{float(b2p['紧急购电量(kWh)']):,.2f}", "q4_2_experiments.csv")
     add("基线", "B3 典型日(Q1)策略（元）", f"{float(b3['总费用(元)']):,.2f}", "q4_2_experiments.csv")
 
     # ---- β / M / 价格不确定度 ----
@@ -147,15 +155,18 @@ def main() -> int:
                 k = known.iloc[0]
                 d = b["报告期总费用(元)"] - k["报告期总费用(元)"]
                 add("方案C·价格信息价值",
-                    f"同源同规则下「价格 0:00 未知 − 已知」= {d:,.0f} 元"
-                    f"（占 {d / k['报告期总费用(元)'] * 100:.2f}%）",
+                    f"「价格 0:00 未知 − 已知」（{b['光伏预报源']} 预报源，同选参规则）",
+                    f"{d:,.0f} 元（{d / k['报告期总费用(元)'] * 100:.2f}%）",
                     f"{b['变体']} vs {k['变体']}")
-            off = vdf[(vdf["光伏预报源"] == "official") & (vdf["价格信息"] == b["价格信息"])]
-            q2 = vdf[(vdf["光伏预报源"] == "q2") & (vdf["价格信息"] == b["价格信息"])]
+            # 仅比较"同选参规则、无联络线上限"的变体，避免与 R-1/选参规则混淆
+            same = vdf[(vdf["选参规则"] == "risk_aware") & (vdf["联络线上限(kW)"].isna())]
+            off = same[(same["光伏预报源"] == "official") & (same["价格信息"] == b["价格信息"])]
+            q2 = same[(same["光伏预报源"] == "q2") & (same["价格信息"] == b["价格信息"])]
             if len(off) and len(q2):
                 d2 = off.iloc[0]["报告期总费用(元)"] - q2.iloc[0]["报告期总费用(元)"]
                 add("方案C·预报源差异",
-                    f"同价格口径下「附件3 官方 − Q2 自建」= {d2:+,.0f} 元",
+                    f"「附件3 官方 − Q2 自建」（价格口径 {b['价格信息']}，同选参规则）",
+                    f"{d2:+,.0f} 元",
                     f"{off.iloc[0]['变体']} vs {q2.iloc[0]['变体']}")
 
     df = pd.DataFrame(REC)

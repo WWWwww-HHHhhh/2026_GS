@@ -1,6 +1,6 @@
 ﻿date,i,selected,prev_day_wape_selected,prev_day_wape_naive_last,n_candidates,train_max_day_index
-2025-01-01,0,fallback_mean,,,1,-1
-2025-01-02,1,naive_last,0.0,,9,0
+2025-01-01,0,fallback_typical_day,,,1,-1
+2025-01-02,1,naive_last,0.1755573227521397,,9,0
 2025-01-03,2,naive_last,0.041262587048867275,0.041262587048867275,9,1
 2025-01-04,3,shapemean7,0.2548203079433263,0.25618032037818084,9,2
 2025-01-05,4,naive_last,0.055025597723970573,0.055025597723970573,9,3
