@@ -158,6 +158,9 @@ def main() -> int:
     ap.add_argument("--report-only-beta", type=float, default=None,
                     help="跳过调参，直接用给定 beta（配合 --report-only-kappa）")
     ap.add_argument("--report-only-kappa", type=float, default=1.0)
+    ap.add_argument("--report-only-M", type=int, default=None,
+                    help="跳过调参时的场景数；缺省取基准配置的 M=20（保持原有行为）。"
+                         "受控口径对比时必须显式指定，否则会与主口径的 M=30 混杂")
     args = ap.parse_args()
 
     started = time.time()
@@ -219,11 +222,13 @@ def main() -> int:
             tune_logs = cand_logs[(selected["M"], selected["beta"], selected["kappa_mult"])]
             s0_report = float(tune_logs[-1]["final_soc"])
         else:
-            selected = {"M": int(BASELINE["M"]), "beta": float(args.report_only_beta),
+            M_sel = int(args.report_only_M) if args.report_only_M is not None else int(BASELINE["M"])
+            selected = {"M": M_sel, "beta": float(args.report_only_beta),
                         "kappa_mult": float(args.report_only_kappa)}
             tune = pd.DataFrame()
             s0_report = float(s0_tune)
-            print(f"  跳过调参，直接使用 {selected}")
+            print(f"  跳过调参，直接使用 {selected}"
+                  + ("（未指定 --report-only-M，按基准 M=20）" if args.report_only_M is None else ""))
 
         print("  [3] 报告期 2025-02-01~12-31")
         report_logs, _ = run_roll(REPORT_DAYS, s0_report, selected, scen_map[selected["M"]], ds,
