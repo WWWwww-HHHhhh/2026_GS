@@ -1,0 +1,6 @@
+.deps/
+__pycache__/
+*.pyc
+
+# 中间产物：由 prepare_result3.py 生成，可随时重跑，不入库
+Results/Tables/result3_payload.json

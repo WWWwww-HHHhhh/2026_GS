@@ -23,3 +23,29 @@
 ## 复现
 
 使用项目可用的 Python 环境依次运行：`Data_processing/q2_data_prepare.py`、`Model_Establishment+Solution/forecast.py`、三次 `scenarios.py --M 10/20/30`、`rolling.py`、`export.py`、`validate.py`。
+
+## 论文图
+
+出图脚本为 `Results/Pictures/make_figures_q2.py`，只读取上一步产出的 `Data_processing/*.pkl` 与 `Results/Tables/forecast_monthly_metrics.csv`，不重新求解、不调参：
+
+```bash
+cd Results/Pictures
+python make_figures_q2.py
+```
+
+每张图同时输出 PDF（投稿用，TrueType 嵌字、可检索）与 PNG（预览用），共 6 张：
+
+| 文件 | 图型 | 说明 |
+| --- | --- | --- |
+| `fig_q2_load_pv_fan` | 四联折线 + 场景带 | 两个代表日的负荷/光伏日前预测、实际与 P5–P95 场景区间，各幅标注当日 WAPE |
+| `fig_q2_error_monthly` | 哑铃图 | 逐月负荷与光伏 WAPE 并排对比，线段长度即两者差距 |
+| `fig_q2_plan_settlement` | 子弹图式渐变对照柱 | 紧急购电最严重日：浅色轨道给出满量程参考，渐变蓝柱为实际提取的日前电、柱顶红段为紧急购电，黑色目标刻线为原计划购电量 |
+| `fig_q2_soc_heatmap` | 日内中位曲线 + 分位带 + 状态条 | 储能日内节律：上幅为中位 SOC 与 P10–P90，下幅色条标出各小时充/放方向 |
+| `fig_q2_emergency_curtailment` | 并排水平渐变条 + 月均参考线 | 逐月紧急购电与弃光；两者量级差约一个数量级，故左右两栏各自独立横轴刻度 |
+| `fig_q2_cvar_frontier` | 散点图 + 色条 | 参数候选在「验证期总费用—紧急购电费」平面的分布，星标为仅用历史期选中的参数 |
+
+> 注：文件名一律沿用旧版，论文 `\includegraphics` 无需改动，但部分图型已更换——
+> `fig_q2_soc_heatmap` 由热力图改为日内节律曲线，`fig_q2_error_monthly` 由折线改为哑铃图，
+> `fig_q2_plan_settlement` 由三条重叠折线改为渐变对照柱，`fig_q2_emergency_curtailment`
+> 由分组柱状图改为并排水平渐变条。所有大面积色块均用 `tint()` 多层叠加做成矢量渐变，
+> 在 PDF 里仍是纯矢量（未光栅化）。
