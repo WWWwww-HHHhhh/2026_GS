@@ -107,6 +107,57 @@ def main() -> int:
         "不可行：334/334 天出现计划量超过实际需要，累计未提取 1,639,609.3 kWh（占计划量 7.19%）",
         "q4_2_experiments_report.md")
 
+    # ---- 方案C 双口径矩阵（读变体 summary，存在才写）----
+    var_files = sorted(TABLES.glob("V_*_summary.csv"))
+    if var_files:
+        import ast
+
+        def _sel(v):
+            if "selected_M" in v.index and pd.notna(v.get("selected_M")):
+                return f"({int(v['selected_M'])}, {v['selected_beta']}, {v['selected_kappa_mult']})"
+            d = v.get("selected")
+            d = ast.literal_eval(d) if isinstance(d, str) else d
+            return f"({int(d['M'])}, {d['beta']}, {d['kappa_mult']})"
+
+        vrows = []
+        for f in var_files:
+            v = pd.read_csv(f, encoding="utf-8-sig").iloc[0]
+            vrows.append({
+                "变体": v["tag"], "光伏预报源": v["pv_source"], "价格信息": v["price_mode"],
+                "选参规则": v["select_rule"], "联络线上限(kW)": v["import_cap_kw"],
+                "选中(M,β,κ×)": _sel(v),
+                "报告期总费用(元)": v["report_total_cost"], "计划购电费(元)": v["report_plan_cost"],
+                "紧急购电费(元)": v["report_emergency_cost"], "紧急购电量(kWh)": v["report_emergency_kwh"],
+                "日费用CVaR90(元)": v["cvar90_daily"], "紧急购电率(%)": v["emergency_rate_pct"],
+            })
+        vdf = pd.DataFrame(vrows).sort_values("变体")
+        vdf.to_csv(TABLES / "q4_2_variant_matrix.csv", index=False, encoding="utf-8-sig")
+        for _, r in vdf.iterrows():
+            add("方案C·双口径", f"{r['变体']}（{r['光伏预报源']}/{r['价格信息']}/{r['选参规则']}）",
+                f"总费用 {r['报告期总费用(元)']:,.0f} 元；紧急费 {r['紧急购电费(元)']:,.0f} 元；"
+                f"CVaR90 {r['日费用CVaR90(元)']:,.0f} 元；选中 {r['选中(M,β,κ×)']}",
+                f"{r['变体']}_summary.csv")
+        base = vdf[vdf["变体"] == "V_q2_unknown_risk"]
+        if len(base) == 0:
+            base = vdf[vdf["变体"] == "V_official_unknown"]
+        if len(base):
+            b = base.iloc[0]
+            known = vdf[(vdf["价格信息"] == "known") & (vdf["光伏预报源"] == b["光伏预报源"])]
+            if len(known):
+                k = known.iloc[0]
+                d = b["报告期总费用(元)"] - k["报告期总费用(元)"]
+                add("方案C·价格信息价值",
+                    f"同源同规则下「价格 0:00 未知 − 已知」= {d:,.0f} 元"
+                    f"（占 {d / k['报告期总费用(元)'] * 100:.2f}%）",
+                    f"{b['变体']} vs {k['变体']}")
+            off = vdf[(vdf["光伏预报源"] == "official") & (vdf["价格信息"] == b["价格信息"])]
+            q2 = vdf[(vdf["光伏预报源"] == "q2") & (vdf["价格信息"] == b["价格信息"])]
+            if len(off) and len(q2):
+                d2 = off.iloc[0]["报告期总费用(元)"] - q2.iloc[0]["报告期总费用(元)"]
+                add("方案C·预报源差异",
+                    f"同价格口径下「附件3 官方 − Q2 自建」= {d2:+,.0f} 元",
+                    f"{off.iloc[0]['变体']} vs {q2.iloc[0]['变体']}")
+
     df = pd.DataFrame(REC)
     df.to_csv(TABLES / "q4_2_paper_numbers.csv", index=False, encoding="utf-8-sig")
     lines = ["# 问题 4-2 论文数字总表（自动汇总，禁止手改）", "",

@@ -43,6 +43,8 @@ DEFAULT_PARAMS = {
     "s_ref": None,             # 默认取 s0
     "hard_terminal": False,
     "full_extraction": False,  # True 时强制 y == x（敏感性口径）
+    "x_cap": None,             # 计划购电量上限（kWh/时段）。None = 不设限（题目未给联络线容量约束）；
+                               # 用于 R-1「联络线容量敏感性」：x_cap = 容量kW × (1/6)
 }
 
 
@@ -204,6 +206,10 @@ def solve_day(P, L, G, s0, params=None):
     for t in range(T):
         bounds[ic[t]] = (0.0, cap)
         bounds[ir[t]] = (0.0, cap)
+    x_cap = p.get("x_cap")
+    if x_cap is not None:
+        for t in range(T):
+            bounds[ix[t]] = (0.0, float(x_cap))
     for t in range(T + 1):
         bounds[is_[t]] = (s_min, s_max)
     bounds[is_[0]] = (s0, s0)

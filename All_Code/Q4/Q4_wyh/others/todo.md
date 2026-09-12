@@ -18,7 +18,7 @@
   - `q4_settlement.py`：与 Q2 逐行同构的因果结算
   - `q4_2_rolling.py --mode full`：预热 14 天 → 仅历史调参 96 组 → 报告期 334 天；选中 **M=30, β=0.2, κ×1.0**
   - `export_result4.py` → `Results/Tables/result4-2.xlsx`：**8 项回读校验全 PASS**
-  - `Results/Pictures/make_figures_q4_2.py` → 6 张图（PDF + PNG）
+  - `Results/Pictures/make_figures_q4_2.py` → **7 张图**（PDF + PNG）+ `figure_captions.md` 图目录图注（含主模型 vs B1 专属对比图 `fig_q4_main_vs_b1_cost_structure`）
 - [x] 6. [门禁B] 结果质询（进行中收尾）
   - `validate_q4_2.py`：结构核验 9 项 PASS（平衡 / SOC / 上限 / 费用口径 / 天数 / 因果）
   - `q4_2_experiments.py`：反事实矩阵（B0~B4 基线 + β 扫描 + M 扫描 + 价格不确定度注入）

@@ -34,3 +34,6 @@ env/
 
 # Excel lock files
 ~$*
+
+# Regenerable large intermediate data
+*.pkl

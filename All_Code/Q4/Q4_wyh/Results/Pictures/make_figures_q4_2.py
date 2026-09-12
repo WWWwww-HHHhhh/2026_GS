@@ -212,6 +212,123 @@ def fig_frontier_baseline(res):
     fig.tight_layout(); save(fig, "fig_q4_frontier_baseline")
 
 
+def fig_main_vs_b1():
+    """专属对比图：Q4-2 主模型 vs B1（Q2 固定价策略）的费用结构与机制。
+
+    数据全部来自已落盘结果表，不重算模型：
+      Results/Tables/q4_2_experiments.csv        总费用
+      Results/Tables/q4_2_timing_main_vs_b1.csv  计划购电费 / 计划购电量 / 均价 / 择时集中度
+    """
+    exp = pd.read_csv(TABLES / "q4_2_experiments.csv", encoding="utf-8-sig")
+    tim = pd.read_csv(TABLES / "q4_2_timing_main_vs_b1.csv", encoding="utf-8-sig")
+
+    def exp_row(prefix):
+        return exp[exp["实验"].str.startswith(prefix)].iloc[0]
+
+    m_row, b1_row = exp_row("主模型"), exp_row("B1")
+    m_tim = tim[tim["方案"].str.startswith("Q4-2")].iloc[0]
+    b1_tim = tim[tim["方案"].str.startswith("B1")].iloc[0]
+
+    names = ["Q4-2 主模型\n（波动电价优化）", "B1\n（Q2 固定价策略）"]
+    plan_cost = np.array([m_tim["计划购电费(实际波动价,元)"], b1_tim["计划购电费(实际波动价,元)"]], float)
+    total = np.array([m_row["总费用(元)"], b1_row["总费用(元)"]], float)
+    emg_cost = total - plan_cost
+    plan_kwh = np.array([m_tim["计划购电量(kWh)"], b1_tim["计划购电量(kWh)"]], float)
+    plan_px = np.array([m_tim["平均购电单价(元/kWh)"], b1_tim["平均购电单价(元/kWh)"]], float)
+    emg_kwh = np.array([m_row["紧急购电量(kWh)"], b1_row["紧急购电量(kWh)"]], float)
+    emg_px = emg_cost / emg_kwh
+
+    fig, axes = plt.subplots(1, 3, figsize=(12.4, 3.8))
+
+    # (a) 费用结构
+    ax = axes[0]
+    x = np.arange(2); w = 0.5
+    ax.bar(x, plan_cost / 1e4, w, color="#3F72AF", label="计划购电费")
+    ax.bar(x, emg_cost / 1e4, w, bottom=plan_cost / 1e4, color="#B03A2E", label="紧急购电费")
+    for i in range(2):
+        ax.text(i, (plan_cost[i] + emg_cost[i]) / 1e4 * 1.01, f"总额 {total[i]/1e4:,.1f} 万元",
+                ha="center", fontsize=7.5)
+        ax.text(i, plan_cost[i] / 1e4 / 2, f"{plan_cost[i]/1e4:,.1f}", ha="center", va="center",
+                fontsize=7.5, color="w")
+        ax.text(i, (plan_cost[i] + emg_cost[i] / 2) / 1e4, f"{emg_cost[i]/1e4:,.1f}", ha="center",
+                va="center", fontsize=7.5, color="w")
+    ax.set_xticks(x); ax.set_xticklabels(names, fontsize=8)
+    ax.set_ylabel("费用（万元）"); ax.set_ylim(0, 1850)
+    ax.set_title("(a) 全年费用构成（334 天）", fontsize=9)
+    ax.legend(fontsize=7, frameon=False, loc="lower right")
+
+    # (b) 单位电价（对数轴）
+    ax = axes[1]
+    x = np.arange(2); w = 0.34
+    ax.bar(x - w / 2, plan_px, w, color="#3F72AF", label="计划购电均价")
+    ax.bar(x + w / 2, emg_px, w, color="#B03A2E", label="紧急购电均价（=5×交易时刻价）")
+    for i in range(2):
+        ax.text(i - w / 2, plan_px[i] * 1.06, f"{plan_px[i]:.4f}", ha="center", fontsize=7.5)
+        ax.text(i + w / 2, emg_px[i] * 1.06, f"{emg_px[i]:.4f}", ha="center", fontsize=7.5)
+    ax.set_yscale("log"); ax.set_ylim(0.4, 14)
+    ax.set_xticks(x); ax.set_xticklabels(names, fontsize=8)
+    ax.set_ylabel("电量单价（元/kWh，对数轴）")
+    ax.set_title(f"(b) 单价：B1 计划更便宜，紧急贵 {emg_px[1]/emg_px[0]:.2f} 倍", fontsize=9)
+    ax.legend(fontsize=6.6, frameon=False, loc="upper left")
+
+    # (c) 择时质量
+    ax = axes[2]
+    metrics = [("计划量落在当日\n最便宜 25% 时段", "最便宜25%时段占比(%)"),
+               ("充电落在\n最便宜 25% 时段", "充电落在最便宜25%(%)"),
+               ("放电落在\n最贵 25% 时段", "放电落在最贵25%(%)")]
+    x = np.arange(len(metrics)); w = 0.34
+    mv = [float(m_tim[k]) for _, k in metrics]
+    bv = [float(b1_tim[k]) for _, k in metrics]
+    ax.bar(x - w / 2, mv, w, color="#3F72AF", label="Q4-2 主模型")
+    ax.bar(x + w / 2, bv, w, color="#9AA5B1", label="B1（Q2 固定价策略）")
+    ax.axhline(25, color="#B03A2E", lw=0.9, ls=":", label="均匀投放基准 25%")
+    for i in range(len(metrics)):
+        ax.text(i - w / 2, mv[i] + 1.2, f"{mv[i]:.1f}", ha="center", fontsize=7)
+        ax.text(i + w / 2, bv[i] + 1.2, f"{bv[i]:.1f}", ha="center", fontsize=7)
+    ax.set_xticks(x); ax.set_xticklabels([m for m, _ in metrics], fontsize=7.5)
+    ax.set_ylabel("占比（%）"); ax.set_ylim(0, 88)
+    ax.set_title("(c) 择时质量：两者相当，差别不在“挑便宜”", fontsize=9)
+    ax.legend(fontsize=6.6, frameon=False, loc="upper left")
+
+    fig.suptitle("图 fig_q4_main_vs_b1_cost_structure　Q4-2 主模型 与 B1（Q2 固定价策略）的费用结构对比"
+                 "（2025-02-01~12-31，334 天，同场景·同结算规则，仅日前优化所用电价不同）",
+                 fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    save(fig, "fig_q4_main_vs_b1_cost_structure")
+
+    # 把该图的关键数字落盘，供论文与复核
+    pd.DataFrame([
+        {"方案": "Q4-2 主模型（波动电价优化）", "计划购电费(元)": plan_cost[0], "紧急购电费(元)": emg_cost[0],
+         "总费用(元)": total[0], "计划购电量(kWh)": plan_kwh[0], "计划均价(元/kWh)": plan_px[0],
+         "紧急购电量(kWh)": emg_kwh[0], "紧急均价(元/kWh)": emg_px[0]},
+        {"方案": "B1（Q2 固定价策略）", "计划购电费(元)": plan_cost[1], "紧急购电费(元)": emg_cost[1],
+         "总费用(元)": total[1], "计划购电量(kWh)": plan_kwh[1], "计划均价(元/kWh)": plan_px[1],
+         "紧急购电量(kWh)": emg_kwh[1], "紧急均价(元/kWh)": emg_px[1]},
+    ]).to_csv(TABLES / "q4_2_fig_main_vs_b1_data.csv", index=False, encoding="utf-8-sig")
+    print(f"    紧急购电费倍数 = {emg_cost[1]/emg_cost[0]:.2f}×；紧急均价倍数 = {emg_px[1]/emg_px[0]:.2f}×")
+
+
+CAPTIONS = [
+    ("fig_q4_price_forecast", "电价与预测：左为逐日实际/预测均价与日内极差，右为日内形状的 P10–P90 与实际/预测均值曲线。单位 元/kWh，样本 365 天 × 144 时段。"),
+    ("fig_q4_representative_day", "代表日（紧急购电最多日）：左上电价实际 vs 日前预测；右上计划购电量、实际负荷/光伏与紧急购电量；左下储能充放电（负值为放电）；右下 SOC 轨迹与上下限。单位 kWh/10min、kWh。"),
+    ("fig_q4_monthly_cost", "逐月费用构成（计划购电费 + 紧急购电费）与逐月紧急购电率（占负荷百分比），2025 年 2–12 月。"),
+    ("fig_q4_plan_vs_extract", "逐月计划购电量、实际提取的计划电量与紧急购电量的量级对比。单位 万 kWh。"),
+    ("fig_q4_scenario_fan", "代表日的价格—负荷—光伏三维联合场景（同一历史日残差块抽样，P5–P95）与当日实际曲线、场景中心。"),
+    ("fig_q4_frontier_baseline", "左：仅用历史期调参得到的风险—成本前沿（验证期紧急购电费 vs 总费用，M=10/20/30）；右：Q4-2 主模型与 B0/B1/B2/B3 基线的报告期总费用对比。单位 万元。"),
+    ("fig_q4_main_vs_b1_cost_structure", "Q4-2 主模型 vs B1（Q2 固定价策略）的费用结构对比（334 天，同场景、同结算规则）。(a) 费用构成：B1 计划费更低但紧急费高 1.96 倍；(b) 单价（对数轴）：B1 计划均价低 5.9%，紧急均价高 96%；(c) 择时质量：两者的低价时段集中度相当，说明差异不在“挑便宜”，而在高价时段的缺口覆盖。数据见 Results/Tables/q4_2_fig_main_vs_b1_data.csv。"),
+]
+
+
+def write_captions():
+    lines = ["# Q4-2 图目录与图注", "",
+             "> 由 `Results/Pictures/make_figures_q4_2.py` 自动生成；每张图同时输出 PDF（投稿）与 PNG（预览）。",
+             "> 文件名即图名，可直接用于 `\\includegraphics{figures/<name>}`。", ""]
+    for name, cap in CAPTIONS:
+        lines += [f"## `{name}`", "", cap, ""]
+    (HERE / "figure_captions.md").write_text("\n".join(lines), encoding="utf-8")
+    print(f"  figure_captions.md（{len(CAPTIONS)} 张图的名称与图注）")
+
+
 if __name__ == "__main__":
     ds, res, pf, sc, M = load()
     print(f"[figures] M={M}，报告期 {len(res['report_logs'])} 天")
@@ -221,4 +338,6 @@ if __name__ == "__main__":
     fig_plan_vs_extract(res)
     fig_scenario_fan(ds, sc, res)
     fig_frontier_baseline(res)
+    fig_main_vs_b1()
+    write_captions()
     print("[figures] 完成")

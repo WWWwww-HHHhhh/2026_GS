@@ -33,10 +33,11 @@ from q4_common import BAND_LABELS, BAND_SLICES, OUT_DATA, TABLES, T, interval_la
 
 TEMPLATE = WYH / "others" / "原始附件_CUMCM2026_C" / "附件" / "附件5" / "result4-2.xlsx"
 OUT_XLSX = TABLES / "result4-2.xlsx"
+RESULTS_PATH = OUT_DATA / "q4_2_rolling_results.pkl"   # 可由 --results 覆盖（方案C 双口径用）
 
 
 def load_results() -> dict:
-    p = OUT_DATA / "q4_2_rolling_results.pkl"
+    p = RESULTS_PATH
     if not p.exists():
         raise FileNotFoundError(f"缺少滚动结果 {p}，请先运行 q4_2_rolling.py --mode full")
     with open(p, "rb") as fh:
@@ -221,8 +222,20 @@ def verify() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(description="导出 result4-2.xlsx（默认使用主口径结果）")
+    ap.add_argument("--results", type=Path, default=OUT_DATA / "q4_2_rolling_results.pkl",
+                    help="滚动结果 pkl 路径（方案C 双口径可指向 variants/<tag>_results.pkl）")
+    ap.add_argument("--out", type=Path, default=TABLES / "result4-2.xlsx",
+                    help="输出工作簿路径")
+    ap.add_argument("--verify-only", action="store_true", help="只做回读校验，不重写工作簿")
+    _a = ap.parse_args()
+    RESULTS_PATH = _a.results
+    OUT_XLSX = _a.out
     try:
-        export()
+        if not _a.verify_only:
+            export()
         verify()
         print("[export] 完成")
     except Exception as exc:  # noqa: BLE001
