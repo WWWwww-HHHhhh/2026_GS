@@ -266,7 +266,11 @@ def solve_day(P, L, G, s0, params=None):
     # 场景成本（真实经济量，不含 eps/kappa2）—— Q4-2 中 λ 逐场景
     C = np.array([float(np.sum(P[m] * x) + 5.0 * np.sum(P[m] * e[m])) for m in range(M)])
     E_C = float(np.mean(C))
-    cvar = float(zeta + (1.0 / (1.0 - alpha)) * np.mean(q))
+    # Report the empirical CVaR of the actual scenario-cost vector, rather
+    # than the auxiliary LP variables.  This remains meaningful when beta=0,
+    # where zeta and q are deliberately absent from the optimized objective.
+    cvar = float(min(z + np.mean(np.maximum(C - z, 0.0)) / (1.0 - alpha)
+                     for z in C))
 
     return {
         "x": x, "c": c, "r": r, "s": s, "xi_p": xi_p, "xi_m": xi_m,
