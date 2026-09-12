@@ -322,7 +322,7 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]
+    \includegraphics[width=0.8\textwidth]
     {../All_Code/Q1/Results/Pictures/q1_fig2_dispatch.pdf}
     \caption{全天购电与储能充放电调度}
     \label{fig:q1_dispatch}
@@ -453,7 +453,7 @@ C_{\mathrm{base}}=\sum_{t=1}^{T}\pi_t\max\{L_t-G_t,\,0\}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]
+    \includegraphics[width=0.7\textwidth]
     {../All_Code/Q1/Results/Pictures/q1_fig4_marginal_value.pdf}
     \caption{分时电价与储能边际价值的日内变化}
     \label{fig:q1_marginal_value}
