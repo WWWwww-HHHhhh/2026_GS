@@ -209,8 +209,8 @@ def verify() -> None:
         ("储能表行数 = 334×6", ws2.max_row - 1 == 334 * 6, f"{ws2.max_row - 1}"),
     ]
     ok = all(r[1] for r in rows)
-    lines = ["# result4-2.xlsx 导出回读校验", "",
-             f"- 文件：`Results/Tables/result4-2.xlsx`", ""]
+    lines = [f"# {OUT_XLSX.name} 导出回读校验", "",
+             f"- 文件：`{OUT_XLSX}`", ""]
     lines += ["| 校验项 | 结果 | 实测 |", "| --- | --- | --- |"]
     for name, good, val in rows:
         lines.append(f"| {name} | {'PASS' if good else 'FAIL'} | {val} |")

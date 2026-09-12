@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 import numpy as np
 import openpyxl
@@ -19,8 +20,11 @@ def near(a,b,label):
 
 
 def main():
-    daily=pd.read_csv(ROOT/"S6_12"/"daily.csv")
-    slots=pd.read_csv(ROOT/"S6_12"/"intervals.csv")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--strategy", default="S6_12")
+    args = parser.parse_args()
+    daily=pd.read_csv(ROOT/args.strategy/"daily.csv")
+    slots=pd.read_csv(ROOT/args.strategy/"intervals.csv")
     book=openpyxl.load_workbook(ROOT/"result4-3.xlsx",read_only=False,data_only=True)
     expected_names=["计划购电量","调整购电量","充放电量","紧急购电量"]
     if book.sheetnames!=expected_names:
@@ -72,7 +76,7 @@ def main():
         _ev+=int(np.flatnonzero(_pos & ~np.r_[False,_pos[:-1]]).size)
     if emergency.max_row!=_ev+1:
         raise AssertionError(f"emergency event count mismatch: {emergency.max_row-1} != {_ev}")
-    print(f"PASS result4-3.xlsx: 334 dates, 96,192 purchase cells, 2,004 storage rows, "
+    print(f"PASS result4-3.xlsx ({args.strategy}): 334 dates, 96,192 purchase cells, 2,004 storage rows, "
           f"{emergency.max_row-1:,} emergency events, full cross-day mapping and cost reconciliation")
 
 

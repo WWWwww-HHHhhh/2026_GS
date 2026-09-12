@@ -1,7 +1,8 @@
 {
-  "problem": "Q4-3 波动电价下的问题三（复用 Q3 模型，仅替换电价向量）",
-  "generated_at_utc": "2026-09-12T11:09:14.195987+00:00",
-  "price_source": "附件4 每日波动电价（日前价格，0:00 已知）",
+  "problem": "Q4-3, volatile real-time-price causal rolling optimization",
+  "generated_at_utc": "2026-09-12T15:22:45.875141+00:00",
+  "price_information": "At each issue time, price scenarios use only the causal day-ahead forecast and residual blocks from days strictly before the target day. Actual target-day prices are used only for realized settlement.",
+  "price_scenario": "Q4-2 causal price forecast plus Q3-sampled historical same-day residual blocks",
   "settlement": "net",
   "forecast_method": "linear_endpoint",
   "report_start": "2025-02-01",
@@ -14,13 +15,25 @@
     "S6_12",
     "Sall"
   ],
-  "q3_fixed_price_Sall_total_yuan": 14517640.171605363,
-  "elapsed_seconds": 1085.6491438999947,
+  "M": 30,
+  "alpha": 0.9,
+  "beta": 0.2,
+  "kappa2": 0.5316666666666666,
+  "eps": 0.0001,
+  "seed": 20260101,
+  "soc_min": 1200.0,
+  "soc_max": 10800.0,
+  "cap_kwh": 833.3333333333334,
+  "initial_state": "Q2_yy validated formal-period input, 2025-02-01 00:00 SOC=6000 kWh",
+  "year_end_terminal": "2025-12-31 24:00 SOC=6000 kWh hard",
   "source_hashes": {
     "q2_result2_sha256": "b2379a84a81863e00ae274a91dcbda1c1b822369522d768b1348c8037d1b6353",
     "attachment1_sha256": "66b87134f5ecccd68184d3539bb1293ef039f9e0fdd955a589b9bfa7f227c377",
     "attachment2_sha256": "2e95fd446bfafa0d8c59577b5c2e2ea8b3f1def20dde54a3062556f4da9b4c72",
     "attachment3_sha256": "8a61b06c52bd0d639a1cc37c61a7d9f5b75edcbca718f64c1bd3498ec9f9d843",
-    "attachment4_sha256": "20e9c93aeab5e8e21ae4dd15587f9e190f7408692504c1319598461cd654fe71"
-  }
+    "attachment4_sha256": "20e9c93aeab5e8e21ae4dd15587f9e190f7408692504c1319598461cd654fe71",
+    "causal_price_forecast_sha256": "05f5c52d33abbddc46a53d57fff29caf85e61beb4d3f46240d6037cc28f24b92"
+  },
+  "elapsed_seconds": 1018.542196800001,
+  "selected_strategy": "Sall"
 }
