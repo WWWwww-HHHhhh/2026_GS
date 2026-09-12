@@ -47,7 +47,8 @@ def verify_sources(data: SourceData) -> dict:
 
 
 def backtest_strategy(data: SourceData, pv_forecast: PVForecast, name: str,
-                      outdir: Path, start_day: int = 31, end_day: int = 365) -> dict:
+                      outdir: Path, start_day: int = 31, end_day: int = 365,
+                      settlement: str = "net") -> dict:
     if name not in STRATEGIES:
         raise ValueError(name)
     if not 31 <= start_day < end_day <= 365:
@@ -71,7 +72,8 @@ def backtest_strategy(data: SourceData, pv_forecast: PVForecast, name: str,
             manifest_rows.append({"target_date": date, "issue_hour": 0,
                                   "scenario_id": scenario_id, "source_day": data.dates[int(source_day)],
                                   "weight": 1.0/M})
-        initial = solve_window(price, bundle, soc, terminal_target, hard_terminal=hard_terminal)
+        initial = solve_window(price, bundle, soc, terminal_target, hard_terminal=hard_terminal,
+                               settlement=settlement)
         zero = initial.q.copy()
         active_q = zero.copy()
         active_c = initial.c.copy()
@@ -97,7 +99,8 @@ def backtest_strategy(data: SourceData, pv_forecast: PVForecast, name: str,
                                           "scenario_id": scenario_id, "source_day": data.dates[int(source_day)],
                                           "weight": 1.0/M})
                 revised = solve_window(price[t:], bundle, soc, terminal_target,
-                                       zero_plan=zero[t:], hard_terminal=hard_terminal)
+                                       zero_plan=zero[t:], hard_terminal=hard_terminal,
+                                       settlement=settlement)
                 active_q[t:] = revised.q
                 active_c[t:] = revised.c
                 active_r[t:] = revised.r
@@ -196,6 +199,7 @@ def main() -> None:
     parser.add_argument("--start", default="2025-02-01")
     parser.add_argument("--end", default="2025-12-31")
     parser.add_argument("--forecast-method", choices=["linear_endpoint", "step"], default="linear_endpoint")
+    parser.add_argument("--settlement", choices=["net", "gross"], default="net")
     parser.add_argument("--outdir", type=Path, default=HERE / "results")
     args = parser.parse_args()
     started = time.perf_counter()
@@ -211,14 +215,15 @@ def main() -> None:
                 "source_hashes": source_hashes, "forecast_method": args.forecast_method,
                 "M": M, "alpha": ALPHA, "beta": BETA, "kappa2": KAPPA, "eps": EPS,
                 "seed": SEED, "soc_min": SOC_MIN, "soc_max": SOC_MAX, "cap_kwh": CAP,
-                "settlement": "final-vs-zero-plan-once, causal_sequential_exact_plan",
+                "settlement": f"{args.settlement}, final-vs-zero-plan-once, causal_sequential_exact_plan",
                 "year_end_terminal": "6000 kWh hard", "Q2_baseline_total_yuan": 14708963.494455712,
                 "report_start": args.start, "report_end": args.end,
                 "strategies": args.strategies}
     (args.outdir / "run_metadata.json").write_text(json.dumps(run_meta, indent=2, ensure_ascii=False), encoding="utf-8")
     summaries = []
     for name in args.strategies:
-        summaries.append(backtest_strategy(data, forecast, name, args.outdir, start_day, end_day))
+        summaries.append(backtest_strategy(data, forecast, name, args.outdir, start_day, end_day,
+                                           settlement=args.settlement))
     pd.DataFrame(summaries).to_csv(args.outdir / "strategy_summary.csv", index=False, encoding="utf-8-sig")
     print(json.dumps({"elapsed_seconds": time.perf_counter()-started, "summaries": summaries}, ensure_ascii=False, indent=2), flush=True)
 

@@ -1,0 +1,32 @@
+{
+  "generated_at_utc": "2026-09-12T04:31:02.909646+00:00",
+  "source_hashes": {
+    "q2_result2_sha256": "b2379a84a81863e00ae274a91dcbda1c1b822369522d768b1348c8037d1b6353",
+    "attachment1_sha256": "66b87134f5ecccd68184d3539bb1293ef039f9e0fdd955a589b9bfa7f227c377",
+    "attachment2_sha256": "2e95fd446bfafa0d8c59577b5c2e2ea8b3f1def20dde54a3062556f4da9b4c72",
+    "attachment3_sha256": "8a61b06c52bd0d639a1cc37c61a7d9f5b75edcbca718f64c1bd3498ec9f9d843"
+  },
+  "forecast_method": "linear_endpoint",
+  "M": 30,
+  "alpha": 0.9,
+  "beta": 0.2,
+  "kappa2": 0.5316666666666666,
+  "eps": 0.0001,
+  "seed": 20260101,
+  "soc_min": 1200.0,
+  "soc_max": 10800.0,
+  "cap_kwh": 833.3333333333334,
+  "settlement": "final-vs-zero-plan-once, causal_sequential_exact_plan",
+  "year_end_terminal": "6000 kWh hard",
+  "Q2_baseline_total_yuan": 14708963.494455712,
+  "report_start": "2025-02-01",
+  "report_end": "2025-12-31",
+  "strategies": [
+    "S0",
+    "S6",
+    "S12",
+    "S18",
+    "S6_12",
+    "Sall"
+  ]
+}

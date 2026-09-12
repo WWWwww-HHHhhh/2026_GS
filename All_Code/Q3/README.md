@@ -21,7 +21,10 @@ All_Code/Q3/
 │   │   ├── result3_payload.json     # 结果表写入载荷（可追溯）
 │   │   ├── strategy_summary.csv     # 六策略费用分解
 │   │   ├── validation_report.json   # 独立复核结论（status=PASS）
-│   │   ├── forecast_conversion_audit.csv  # 整点预报→10 分钟转换误差
+│   │   ├── forecast_conversion_audit.csv  # 整点预报→10 分钟转换误差（正式期诊断，不用于选方法）
+│   │   ├── forecast_conversion_audit_jan.csv  # 1 月选择窗口的插值对比（方法选择证据）
+│   │   ├── seed_stability.json        # 多种子稳定性验证（3 种子下 Sall<S0 排名稳定）
+│   │   ├── settlement_gross/          # 备选结算口径（原价照付+违约）重跑的复核证据（summary+daily）
 │   │   └── repro_check_Sall_summary.json  # 复现验证运行记录
 │   └── Pictures/                    # 论文插图（q3_fig1 ~ q3_fig6，PDF+PNG+SVG）
 ├── Data_processing/Q2_interface/    # 冻结的 Q2 交接数据（预测、残差块、参数）
@@ -50,6 +53,9 @@ cd All_Code/Q3/Model_Establishment+Solution
 # 1) 全年回测（六策略全跑约 13 分钟；单策略 Sall 约 3 分钟）
 python run_q3.py --strategies S0 S6 S12 S18 S6_12 Sall --outdir ../Results/Tables
 
+# 1b) 备选结算口径（原价照付+违约/超量）重跑，用于口径敏感性
+python run_q3.py --strategies S0 S6 S12 S18 S6_12 Sall --settlement gross --outdir ../Results/Tables/settlement_gross
+
 # 2) 独立复核
 python validate_q3.py --strategies S0 S6 S12 S18 S6_12 Sall --outdir ../Results/Tables
 
@@ -77,7 +83,9 @@ python make_q3_figures.py
 | 独立复核（六策略） | `validate_q3.py` 重算能量/费用/SOC/因果性：`validation_report.json` 中 `status = PASS`，六策略 `all_checks_passed = true` |
 | 工作簿独立审计 | `validate_result3_workbook.py`：334 个日期、96192 个购电格、2004 行储能记录、3818 条紧急购电事件、跨行映射与费用勾稽全部通过 |
 | 结果表写入一致性 | Python 写出器与早期 Node 实现逐单元格对比：计划购电量/调整购电量/充放电量/紧急购电量四表**0 差异** |
-| 论文编译 | `Paper/main.tex` 在本机 MiKTeX（xelatex）下编译通过，26 页，0 错误、0 未定义引用 |
+| 论文编译 | `Paper/main.tex` 在本机 MiKTeX（xelatex）下编译通过，27 页，0 错误、0 未定义引用 |
+| 备选口径敏感性 | `run_q3.py --settlement gross` 重跑六策略：Sall=14,739,051 元，仍比 S0（14,861,386 元）省 122,335 元；主结论在两种口径下一致 |
+| 多种子稳定性 | 3 个种子重算 S0/Sall：节省 31.7 万–34.4 万元，`Sall<S0` 排名在全部种子下稳定（`seed_stability.json`） |
 
 ## 主要结果（2025-02-01 至 2025-12-31，334 天 / 48,096 个 10 分钟时段）
 
@@ -98,11 +106,11 @@ python make_q3_figures.py
 
 1. **时间**：附件时刻为十分钟区间的**右端点**，`0:00+1` 即当日 24:00；自然日 = 144 个区间。
 2. **模板跨行**：`result3.xlsx` 的“计划购电量/调整购电量”按官方模板跨行展示——普通日期行前 143 格属本日区间 2–144，最后一格为**次日首区间**；因此行内 144 格之和 ≠ 该行“全天购电量”（后者按完整自然日统计），最后一行最后一格为空。
-3. **结算基准**：最终调整购电量与**当日 0:00 计划**一次性比较结算，不逐次累计；计划高于调整的部分按 0.5 倍电价、调整高于计划的部分按 1.5 倍电价，二者在正价格下为凸分段线性，可用 LP 精确表达。
-4. **调整触发**：仅当重优化后的预计风险调整费用优于维持现方案时采用（容差 1e-4 元，只用于消除数值误差，不虚构手续费）。
+3. **结算基准**：最终调整购电量与**当日 0:00 计划**一次性比较结算，不逐次累计；计划高于调整的部分按 0.5 倍电价、调整高于计划的部分按 1.5 倍电价，二者在正价格下为凸分段线性，可用 LP 精确表达。题面"计划购电费用"另有"原价照付、差额另付违约/超量"的解读（备选口径，`--settlement gross`），重跑后结论一致（见 `settlement_gross/` 与论文表 10）。
+4. **重解规则（更新时点）**：在策略允许的发布时刻，以该时刻已发布的最新预报、已结束时段的真实 SOC 与同一组残差场景，对未执行时段重解并直接生效；由于允许调整的可行域包含维持现方案的可行域，重解目标不劣于原方案，故无需另设采纳门槛，也不虚构调整手续费。
 5. **非预期性**：各时刻只使用该时刻及以前的真实信息；已执行时段冻结（0:00–6:00 的最终计划恒等于 0:00 计划）。
 6. **参数**：α=0.9、β=0.2、场景数 M=30、软终端罚系数 κ=0.5317 元/kWh（取自问题一储能边际价值中位数）、随机种子 20260101。
-7. **预报转换**：附件 3 整点预报按线性插值降到 10 分钟——审计显示线性插值全面优于阶梯保持（0 点 WAPE 8.3% vs 15.6%）。
+7. **预报转换**：附件 3 整点预报按线性插值降到 10 分钟。线性插值依据光伏功率的物理连续性预先选定，1 月历史窗口独立验证其优于阶梯保持（0 点 WAPE 8.16% vs 16.22%），正式期误差仅作诊断。
 
 ## 与早期版本的关系
 

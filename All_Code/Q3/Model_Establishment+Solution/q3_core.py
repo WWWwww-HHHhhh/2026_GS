@@ -197,8 +197,15 @@ def market_cost_alternative(price: np.ndarray, zero_plan: np.ndarray, final_plan
 
 
 def solve_window(price: np.ndarray, bundle: ScenarioBundle, soc0: float, terminal_target: float,
-                 zero_plan: np.ndarray | None = None, hard_terminal: bool = False) -> Solution:
-    """One nonanticipative stochastic LP over the remaining natural-day slots."""
+                 zero_plan: np.ndarray | None = None, hard_terminal: bool = False,
+                 settlement: str = "net") -> Solution:
+    """One nonanticipative stochastic LP over the remaining natural-day slots.
+
+    settlement: "net"   -> adjusted-energy-priced net settlement (main convention);
+                "gross" -> original plan fully paid plus cancel/surcharge (alternative).
+    """
+    if settlement not in ("net", "gross"):
+        raise ValueError(settlement)
     l, g = bundle.load, bundle.pv
     m, h = l.shape
     price = np.asarray(price, dtype=float)
@@ -207,14 +214,18 @@ def solve_window(price: np.ndarray, bundle: ScenarioBundle, soc0: float, termina
     if zero_plan is not None and np.asarray(zero_plan).shape != (h,):
         raise ValueError("zero-hour plan shape mismatch")
     initial = zero_plan is None
-    # First stage: q,c,r,s,f,xi+,xi-,zeta. Recourse per scenario: y,e,g,w,v,z.
+    # First stage: q,c,r,s,f,xi+,xi-,zeta (+dm,dp for gross). Recourse per scenario: y,e,g,w,v,z.
     q0 = 0
     c0 = h
     r0 = 2 * h
     s0 = 3 * h
     f0 = s0 + h + 1
     xi_p, xi_m, zeta = f0 + h, f0 + h + 1, f0 + h + 2
-    base = zeta + 1
+    if settlement == "gross":
+        dm0, dp0 = zeta + 1, zeta + 1 + h
+        base = dp0 + h
+    else:
+        base = zeta + 1
     block = 5 * h + 1
     n = base + m * block
 
@@ -241,6 +252,12 @@ def solve_window(price: np.ndarray, bundle: ScenarioBundle, soc0: float, termina
     for t in range(h):
         if initial:
             eq.add([(f0+t, 1), (q0+t, -price[t])], 0)
+        elif settlement == "gross":
+            x = float(zero_plan[t])
+            # q - x = dp - dm  =>  q - dp + dm = x
+            eq.add([(q0+t, 1), (dp0+t, -1), (dm0+t, 1)], x)
+            # f = p*x + 0.5*p*dm + 1.5*p*dp
+            eq.add([(f0+t, 1), (dm0+t, -0.5*price[t]), (dp0+t, -1.5*price[t])], price[t]*x)
         else:
             x = float(zero_plan[t])
             ub.add([(q0+t, 0.5*price[t]), (f0+t, -1)], -0.5*price[t]*x)
