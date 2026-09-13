@@ -2,8 +2,8 @@
 """Q2_yy可移植路径；所有路径由当前文件位置推导。"""
 from pathlib import Path
 
-MODEL_DIR = Path(__file__).resolve().parent          # All_Code/Q2/Model_Establishment+Solution
-Q2_ROOT = MODEL_DIR.parent                            # All_Code/Q2
+MODEL_DIR = Path(__file__).resolve().parent          # All_Code/Q2_yy/Model_Establishment+Solution
+Q2_ROOT = MODEL_DIR.parent                            # All_Code/Q2_yy
 REPO_ROOT = Q2_ROOT.parents[1]                        # 仓库根目录（2026_GS）
 
 Q2_DATA_PROCESSING = Q2_ROOT / "Data_processing"

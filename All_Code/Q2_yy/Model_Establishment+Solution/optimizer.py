@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-P2 两阶段随机 LP + CVaR 单日优化器（2026 数模 C 题 问题二）
-============================================================
-实现依据：总纲第 4.1（题意）、4.4（符号）、4.5（目标与 CVaR）、4.6（约束）、2.3（公共物理约束）。
-实现方式：环境无 PuLP，按提示词要求用 scipy.optimize.linprog(HiGHS) 自建稀疏矩阵。
+单日两阶段随机线性规划求解器（含 CVaR 风险项）。
 
-【全局铁律摘要】
-1. 第一阶段变量 x/c/r/s/xi 跨场景共享（非预期性），严禁写成 c^w,r^w,s^w。
-2. 第二阶段变量 y/u/e/g/w/v/q 每个场景 m 独立；v 为供给超过负荷与计划充电后的弃电。
-3. 惩罚项 eps 与软终端罚项 kappa2 只用于求解；报告的真实费用不含它们。
-4. 公共电量平衡式 y+e+g+r = L+c；SOC 递推 s_t = s_{t-1} + eta_c*c_t - r_t/eta_r。
-5. 紧急购电严格按交易时刻电价的 5 倍计费。
+第一阶段决策（跨场景共享，体现非预期性）：x 购电、c 充电、r 放电、s 储电量、xi 软终端偏差。
+第二阶段决策（各场景独立）：y 计划电提取、u 未提取、e 紧急购电、g 光伏利用、w 弃光、v 供给过剩弃电。
+
+模型要点：
+    电量平衡 y + e + g + r = L + c；储能递推 s_t = s_{t-1} + eta_c*c_t - r_t/eta_r；
+    紧急购电按交易时刻电价的 5 倍计费；
+    惩罚项 eps 与软终端罚项 kappa2 仅用于稳定求解，不计入对外报告的费用。
+
+求解：环境无 PuLP，用 scipy.optimize.linprog(HiGHS) 配合稀疏矩阵自建模型。
 """
 import numpy as np
 from scipy.optimize import linprog
@@ -21,7 +21,7 @@ DEFAULT_PARAMS = {
     "alpha": 0.90,
     "beta": 0.5,
     "eps": 1e-4,
-    "kappa2": None,          # 必须由调用方传入（P0 校准的 kappa2_base 或其倍数）
+    "kappa2": None,          # 由调用方传入（问题一标定的储能边际价值基准或其倍数）
     "eta_c": 0.9,
     "eta_r": 0.9,
     "s_min": 1200.0,
@@ -70,7 +70,7 @@ def solve_day2(price, scenarios, s0, params=None):
     if price.shape != (T,):
         raise ValueError(f"price 应为 ({T},)，实际 {price.shape}")
     if (price <= 0).any():
-        raise ValueError("电价必须为正（总纲 2.2: pi>0）")
+        raise ValueError("电价必须为正")
     L = np.asarray(scenarios["L"], dtype=float)
     G = np.asarray(scenarios["G"], dtype=float)
     if L.ndim != 2 or G.ndim != 2 or L.shape[0] != G.shape[0] or L.shape[1] != T:
@@ -177,7 +177,7 @@ def solve_day2(price, scenarios, s0, params=None):
     vals_eq += [1.0, -1.0, 1.0]
     b_eq.append(s_ref)
 
-    # 约束：y <= x（默认） 或 全量提取敏感性 y == x（总纲 4.1/4.8）
+    # 约束：默认 y <= x；采用全量提取口径时取 y == x
     for m in range(M):
         for t in range(T):
             if full_extraction:

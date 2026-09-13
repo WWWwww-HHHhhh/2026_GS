@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-P6 问题二论文用表（2026 数模 C 题）
-====================================
-数据只来自 P0-P4 产出，每个统计量带样本量列。
+问题二论文用表生成（2026 数模 C 题）。
+
+数据全部取自前置步骤已落盘的产物，不重新求解；每个统计量均带样本量列。
 输出 4 张表：kappa2_calibration（复核）、tuning_sensitivity（复核）、
 monthly_metrics、annual_cost_summary。
 """
@@ -28,7 +28,7 @@ def run_tables():
         ds = pickle.load(fh)
     logs = res["report_logs"]
 
-    # ---- 1. kappa2_calibration 复核（保持 P0 产物，不重算） ----
+    # ---- 1. kappa2_calibration 复核（沿用已有标定产物，不重算） ----
     k2 = pd.read_excel(os.path.join(TABLES, "kappa2_calibration.xlsx"))
     print(f"    复核 kappa2_calibration.xlsx: {len(k2)} 行，kappa2_base 来自问题一 SOC 对偶口径")
 
@@ -115,7 +115,7 @@ def main() -> int:
         return 0
     except Exception as exc:
         print("=" * 60)
-        print("P6 表格执行失败：")
+        print("表格生成失败：")
         traceback.print_exc()
         print(f"错误信息: {exc}")
         return 1

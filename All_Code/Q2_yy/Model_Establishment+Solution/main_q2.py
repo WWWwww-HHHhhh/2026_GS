@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-P4 主程序 main_q2.py（2026 数模 C 题 问题二）
-============================================
-按顺序编排：P0 数据准备（已存在则跳过）-> P1 预测/场景（已存在则跳过）
-            -> P3 滚动与调参 -> P4 导出 -> P4 严格校验。
+问题二主程序（2026 数模 C 题）。
+
+依次执行：数据准备 -> 预测与场景生成 -> 滚动优化与参数标定 -> 结果导出 -> 严格校验。
+中间结果已存在时自动跳过对应步骤。
 """
 import os
 import sys
@@ -38,19 +38,19 @@ def main() -> int:
     t_start = time.time()
     steps = {}
 
-    # P0：数据准备（pkl 已存在则跳过）
+    # 第一步：数据准备（结果已存在则跳过）
     pkl = os.path.join(DATA_PROC, "q2_dataset.pkl")
     if os.path.exists(pkl):
-        print("P0 跳过：q2_dataset.pkl 已存在")
+        print("数据准备跳过：q2_dataset.pkl 已存在")
     else:
-        steps["P0_data_prepare"] = run_script(os.path.join(DATA_PROC, "q2_data_prepare.py"))
+        steps["数据准备"] = run_script(os.path.join(DATA_PROC, "q2_data_prepare.py"))
 
-    # P1：预测与场景（缓存已存在则跳过）
+    # 第二步：负荷与光伏预测、场景生成（缓存已存在则跳过）
     fc_path = os.path.join(DATA_PROC, "forecasts.pkl")
     if os.path.exists(fc_path):
-        print("P1 forecast 跳过：forecasts.pkl 已存在")
+        print("预测跳过：forecasts.pkl 已存在")
     else:
-        steps["P1_forecast"] = run_script(os.path.join(MODEL_DIR, "forecast.py"))
+        steps["负荷与光伏预测"] = run_script(os.path.join(MODEL_DIR, "forecast.py"))
     for m in (10, 20, 30):
         cache = os.path.join(DATA_PROC, f"scenarios_M{m}.pkl")
         if not os.path.exists(cache):
@@ -58,16 +58,16 @@ def main() -> int:
             cp = subprocess.run([PY, os.path.join(MODEL_DIR, "scenarios.py"), "--M", str(m)], cwd=MODEL_DIR)
             if cp.returncode != 0:
                 raise RuntimeError(f"scenarios.py --M {m} 退出码 {cp.returncode}")
-            steps[f"P1_scenarios_M{m}"] = time.time() - t0
+            steps[f"场景生成 M={m}"] = time.time() - t0
 
-    # P3：滚动与调参
-    steps["P3_rolling"] = run_script(os.path.join(MODEL_DIR, "rolling.py"))
+    # 第三步：滚动优化与参数标定
+    steps["滚动优化与参数标定"] = run_script(os.path.join(MODEL_DIR, "rolling.py"))
 
-    # P4：导出与校验（先导出 result2，再让第 12 项逐格核对磁盘文件）
-    steps["P4_export"] = run_script(os.path.join(MODEL_DIR, "export.py"))
-    steps["P4_validate"] = run_script(os.path.join(MODEL_DIR, "validate.py"))
+    # 第四步：结果导出与校验（先导出 result2.xlsx，再逐格核对磁盘文件）
+    steps["结果导出"] = run_script(os.path.join(MODEL_DIR, "export.py"))
+    steps["严格校验"] = run_script(os.path.join(MODEL_DIR, "validate.py"))
 
-    # 控制台汇总；废弃的 run_summary.txt 不再生成或作为证据。
+    # 控制台汇总本次运行的步骤耗时与报告期费用。
     with open(os.path.join(DATA_PROC, "q2_rolling_results.pkl"), "rb") as fh:
         res = pickle.load(fh)
     total_elapsed = time.time() - t_start

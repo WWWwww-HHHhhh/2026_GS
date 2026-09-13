@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-P4 官方模板导出 result2.xlsx（2026 数模 C 题 问题二）
-====================================================
-实现依据：总纲 2.1（模板表头偏移风险）、4.8（连续紧急购电时段合并）、7.2 第 12 项。
-导出结构与官方模板完全一致（sheet 名、列名、列顺序、日期格式），不新增 sheet/列。
+按官方模板导出 result2.xlsx（2026 数模 C 题 问题二）。
+
+导出结构与官方模板保持一致：sheet 名、列名、列顺序与日期格式均按模板填写，
+不新增 sheet 或列；相邻的十分钟紧急购电时段合并为连续区间后填写。
 """
 import os
 import pickle
@@ -125,7 +125,7 @@ def build_workbook(res, ds, tm):
             row[3] = dis
             ws2.append(row)
 
-    # ---- Sheet 3 紧急购电量（连续时段合并，总纲 4.8） ----
+    # ---- Sheet 3 紧急购电量（相邻时段合并为连续区间） ----
     ws3 = out.create_sheet("紧急购电量")
     ws3.append(emg_header)
     for l in report_logs:
@@ -241,7 +241,7 @@ def main() -> int:
         return 0
     except Exception as exc:
         print("=" * 60)
-        print("P4 export 执行失败：")
+        print("result2 导出失败：")
         traceback.print_exc()
         print(f"错误信息: {exc}")
         return 1

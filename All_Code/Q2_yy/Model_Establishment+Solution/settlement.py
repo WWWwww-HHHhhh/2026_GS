@@ -24,7 +24,7 @@ def settle_day(price, x, c, r, L_actual, G_actual, s0, full_extraction=False):
 
     y = np.zeros(T); e = np.zeros(T); g = np.zeros(T)
     # c/r 是0:00已经确定且在随机规划中计价、计入SOC的日前决策。
-    # 结算必须执行同一组变量，不能再依据真实全天轨迹改写策略。
+    # 结算沿用同一组日前决策，不依据真实全天轨迹改写充放电计划。
     c_actual = c.copy(); r_actual = r.copy(); s_actual = np.zeros(T + 1)
     spill = np.zeros(T)
     s_actual[0] = float(s0)

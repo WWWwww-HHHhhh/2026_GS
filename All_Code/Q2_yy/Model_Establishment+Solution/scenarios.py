@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-P1 经验场景生成（2026 数模 C 题 问题二）
-========================================
-实现依据：总纲第 4.2 节第 4 条（整日残差块联合 bootstrap）。
-本模块对负荷与光伏“同块联合抽样”，保持日内时间相关性，禁止单独打乱负荷/光伏残差。
+负荷与光伏联合场景生成（2026 数模 C 题 问题二）。
 
-【全局铁律摘要】
-1. 残差定义：res = 实际 - 预测（负荷、光伏各自）。
-2. 整日残差块库：第 i 天结束后，把当天 144 维负荷残差与 144 维光伏残差作为一个
-   “同日联合残差块”追加进库（2025-01-01 除外）。
-3. 场景生成（决策日 i）只使用严格早于 i 的最近30个残差块。
-4. 场景值物理截断：L_scen >= 0, G_scen >= 0，截断后记录比例。
-5. 固定种子；M 变化时用同一基础种子（取前 M 个抽样），保证嵌套可比。
+把 144 维负荷残差与 144 维光伏残差按同一历史日期作为一个“整日联合残差块”同步抽样，
+以保持二者的日内时间相关性与相互关联，不单独打乱任一侧的残差。
+
+实现约定：
+1. 残差定义 res = 实际 - 预测（负荷、光伏各自）。
+2. 第 i 天结束后，把当天的整日联合残差块追加进残差库（2025-01-01 无历史，不追加）。
+3. 决策日 i 的场景只使用严格早于 i 的最近 30 个残差块。
+4. 场景值作物理截断 L_scen >= 0、G_scen >= 0，并记录截断比例。
+5. 固定随机种子；场景数 M 变化时共用同一基础种子（取前 M 个抽样），保证嵌套可比。
 """
 import os
 import pickle
@@ -111,7 +110,7 @@ class ScenarioEngine:
         return L_all, G_all, trunc_load_total, trunc_pv_total
 
     def save_demo(self, L_all: np.ndarray, G_all: np.ndarray, demo_date: str = "2025-07-15"):
-        """挑一个典型日保存 20 个场景长表，供 P5 画扇形图。"""
+        """挑一个典型日保存 20 个场景长表，供绘制场景分位区间图。"""
         date_strs = [d.strftime("%Y-%m-%d") for d in self.dates]
         if demo_date not in date_strs:
             raise ValueError(f"演示日 {demo_date} 不在日期序列中")
@@ -141,7 +140,7 @@ def run_scenarios(M_demo: int = 20) -> dict:
         fc = pickle.load(fh)
 
     eng = ScenarioEngine(ds, fc)
-    print(f"[P1 scenarios] 生成 M={M_demo} 全部场景（残差块联合 bootstrap）")
+    print(f"[场景生成] 生成 M={M_demo} 全部场景（整日残差块联合抽样）")
     L_all, G_all, tl, tp = eng.generate_all(M_demo)
     print(f"    场景矩阵: L_all={L_all.shape}, G_all={G_all.shape}")
     print(f"    物理截断统计: 负荷截断 {tl} 个, 光伏截断 {tp} 个 "
@@ -177,11 +176,11 @@ def main() -> int:
         if args.M <= 0:
             raise ValueError("M 必须为正整数")
         run_scenarios(args.M)
-        print("P1 scenarios 完成")
+        print("场景生成完成")
         return 0
     except Exception as exc:
         print("=" * 60)
-        print("P1 scenarios 执行失败：")
+        print("场景生成失败：")
         traceback.print_exc()
         print(f"错误信息: {exc}")
         return 1
