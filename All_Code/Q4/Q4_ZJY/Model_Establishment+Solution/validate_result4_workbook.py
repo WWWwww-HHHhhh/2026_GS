@@ -21,7 +21,8 @@ def near(a,b,label):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--strategy", default="S6_12")
+    parser.add_argument("--strategy", required=True,
+                        help="strategy used to create result4-3.xlsx")
     args = parser.parse_args()
     daily=pd.read_csv(ROOT/args.strategy/"daily.csv")
     slots=pd.read_csv(ROOT/args.strategy/"intervals.csv")

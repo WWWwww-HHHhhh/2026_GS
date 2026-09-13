@@ -1,4 +1,4 @@
-"""Prepare typed result3 cell matrices from the validated Sall long records."""
+"""Prepare typed result4 cell matrices from a validated selected strategy."""
 
 from __future__ import annotations
 
@@ -19,8 +19,9 @@ def hhmm(minutes: int) -> str:
 
 def main() -> None:
     parser=argparse.ArgumentParser()
-    parser.add_argument("--folder",type=Path,default=HERE/"results")
-    parser.add_argument("--strategy",default="S6_12")
+    parser.add_argument("--folder",type=Path,default=HERE.parent/"Results"/"Tables")
+    parser.add_argument("--strategy",required=True,
+                        help="validated strategy to write into the official workbook")
     args=parser.parse_args()
     report=json.loads((args.folder/"validation_report.json").read_text(encoding="utf-8"))
     if report["status"]!="PASS" or not any(x["strategy"]==args.strategy for x in report["strategies"]):
