@@ -2,6 +2,36 @@
 \section{问题四：实时波动电价下的购电与滚动调整模型}
 \subsection{模型概述}
 问题四分别研究实时波动电价下的日前单次决策和日内滚动调整。前者沿用问题二的两阶段随机规划框架，每日零点制定购电与储能计划；后者沿用问题三的滚动优化框架，根据日内更新的预报重新优化尚未执行的时段。负荷、光伏及储能约束与前文一致，以下仅说明电价变化引起的模型调整。
+
+\subsection{符号说明}
+
+问题四沿用问题二、问题三中的购电、储能及滚动决策符号，新增符号如下。
+
+\begin{table}[H]
+    \centering
+    \caption{问题四新增符号说明}
+    \label{tab:q4_symbols}
+    \renewcommand{\arraystretch}{1.25}
+    \begin{tabularx}{0.92\textwidth}{
+        >{\centering\arraybackslash}p{0.25\textwidth}
+        >{\centering\arraybackslash}X}
+        \toprule
+        符号 & 含义 \\
+        \midrule
+        $i$ & 日期编号 \\
+        $\pi_{i,t}$ & 第 $i$ 日第 $t$ 时段的实际电价 \\
+        $\mu_i$ & 第 $i$ 日的平均电价水平 \\
+        $\varphi_{i,t}$ & 第 $i$ 日第 $t$ 时段的归一化电价形状 \\
+        $\widehat{\pi}_{i,t}$ & 第 $i$ 日第 $t$ 时段的因果电价预测值 \\
+        $j_\omega$ & 场景 $\omega$ 抽取的历史残差日期 \\
+        $\pi_{i,t}^{\omega}$ & 场景 $\omega$ 下第 $i$ 日第 $t$ 时段的电价 \\
+        $\delta_\pi$ & 保证场景电价为正的数值下界 \\
+        $p_\omega$ & 场景 $\omega$ 的发生概率 \\
+        $a_t$ & 滚动调整后第 $t$ 时段的计费电量 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
 \subsection{电价信息口径}
 
 题目仅说明外网电价实时波动，并未说明目标日全天电价是否在零点公布。本文据此采用“零点未知”的主口径：决策时仅利用严格早于目标日的历史数据生成因果电价预测，并通过历史价格残差构造价格场景；目标日实际电价不参与尚未执行时段的优化，仅在相应时段执行后用于费用结算。
@@ -244,16 +274,12 @@ M=30,\qquad
 
 \subsubsection{信息口径与参数敏感性}
 
-为区分电价信息与光伏预报来源的影响，设置 \(2\times2\) 受控实验；风险权重的影响同时见图~\ref{fig:q4_beta_sensitivity}。
-
-由表~\ref{tab:q4_information_comparison}可知，在两种光伏预报下，提前获得全天电价分别可节省 \(22.46\) 万元和 \(21.67\) 万元，说明价格信息价值对光伏预报来源不敏感。
-
-由图~\ref{fig:q4_beta_sensitivity}可见，增大风险权重能够降低紧急购电率，但会提高总费用。场景数达到20后费用趋于稳定，而 \(M=30\) 的紧急购电率更低，故最终取 \(M=30\)、\(\beta=0.20\)。完整结果见《问题四电价信息受控对照结果.csv》和《问题四风险权重与场景数敏感性结果.csv》。
+为区分电价信息与光伏预报来源的影响，本文设置 \(2\times2\) 受控实验，结果见表~\ref{tab:q4_information_comparison}。
 
 \noindent
 \begin{minipage}[t]{0.45\textwidth}
     \vspace{0.5em}
-    \raggedleft
+    \centering
     \small
     \setlength{\tabcolsep}{5pt}
     \begin{tabular}{lcc}
@@ -271,17 +297,23 @@ M=30,\qquad
     \label{tab:q4_information_comparison}
 \end{minipage}
 \hspace{0.05\textwidth}
-\begin{minipage}[t]{0.4\textwidth}
+\begin{minipage}[t]{0.40\textwidth}
     \vspace{-5pt}
-    \raggedright
+    \centering
     \includegraphics[width=\linewidth]
     {../All_Code/Q4/Q4_WYH/figures/fig_q4_beta_sensitivity_compact.pdf}
     \captionsetup{justification=centering}
-    \captionof{figure}{风险权重的成本与风险权衡}
+    \captionof{figure}{风险权重对费用与紧急购电率的影响}
     \label{fig:q4_beta_sensitivity}
 \end{minipage}
 \par
 \vspace{0.5em}
+
+由表~\ref{tab:q4_information_comparison}可知，在两种光伏预报下，提前获得全天电价分别可节省 \(22.46\) 万元和 \(21.67\) 万元，说明价格信息价值对光伏预报来源不敏感。
+
+在自建预测对照口径下，\(\beta\) 由0增至0.5时，紧急购电率由 \(0.685\%\) 降至 \(0.544\%\)，但全年费用由 \(1538.09\) 万元增至 \(1582.75\) 万元，如图~\ref{fig:q4_beta_sensitivity}所示。实际日费用的CVaR$_{90}$并未随之下降，因此增大风险权重只能解释为减少紧急购电暴露，不能说明实际尾部费用风险必然降低。
+
+场景数达到20后总费用趋于稳定，而 \(M=30\) 时紧急购电率更低，支持采用正式报告期前选定的 \(M=30\)，但不据此利用报告期数据重新选参。将价格残差幅度调整为基准值的0.7倍和1.3倍后，全年费用相对基准结果的变化均不足 \(0.1\%\)，说明主要结论对价格场景扰动不敏感。完整实验结果见支撑文件《问题四参数敏感性实验结果.csv》。
 
 \subsubsection{基线与适用范围}
 
