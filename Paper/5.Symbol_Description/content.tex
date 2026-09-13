@@ -1,29 +1,30 @@
 % !TeX root = ../main.tex
 % 表1：总符号表（反复使用的符号及各问的重要符号）
+% !TeX root = ../main.tex
 \section{主要符号说明}
 
 \begin{table}[H]
     \centering
     \caption{通用符号说明}
     \label{tab:main_symbols}
-    \renewcommand{\arraystretch}{1.35}
+    \renewcommand{\arraystretch}{1.30}
     \begin{tabularx}{0.92\textwidth}{
         >{\centering\arraybackslash}p{0.25\textwidth}
         >{\centering\arraybackslash}X}
         \toprule
         符号 & 含义 \\
         \midrule
-        $t$ & 时段编号，$t=1,2,\ldots,T$ \\
+        $t,\ T$ & 时段编号与每日时段总数，$t=1,2,\ldots,T$，$T=144$ \\
         $\pi_t$ & 第 $t$ 时段的外网购电价格 \\
         $L_t,\ G_t$ & 第 $t$ 时段的负荷电量与光伏发电量 \\
         $x_t$ & 第 $t$ 时段的计划购电量 \\
-        $c_t$ & 第 $t$ 时段由交流母线送入储能的充电量 \\
-        $r_t$ & 第 $t$ 时段由储能释放到交流母线的放电量 \\
+        $y_t,\ e_t$ & 第 $t$ 时段的计划电提取量与紧急购电量 \\
+        $c_t,\ r_t$ & 第 $t$ 时段的储能充电量与放电量 \\
         $s_t$ & 第 $t$ 时段结束时的储电量 \\
         $\eta_c,\ \eta_r$ & 储能的充电效率与放电效率 \\
+        $m,\ \omega,\ M$ & 场景编号与场景总数 \\
         $\alpha,\ \beta$ & CVaR置信水平与风险权重 \\
         \bottomrule
     \end{tabularx}
 \end{table}
-
 
