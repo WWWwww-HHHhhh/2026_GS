@@ -1,6 +1,6 @@
 # Q4_wyhnew 文件清单
 
-共 218 个文件，合计 324.66 MB。
+共 263 个文件，合计 326.49 MB。
 
 | 文件 | 大小(B) | sha256[:12] |
 | --- | --- | --- |
@@ -176,6 +176,7 @@
 | `audit/verify_round4.md` | 3708 | `c65b38ca9dc2` |
 | `audit/verify_round4.py` | 2231 | `8e9a0f9f4ba8` |
 | `audit/warm_soc_check.py` | 1080 | `9f75b404c648` |
+| `build_appendix_assets.py` | 7206 | `c2ede42f40b1` |
 | `build_log.md` | 1709 | `21f6b72e9726` |
 | `check_path_resolution.py` | 3303 | `e9a55c69a9f9` |
 | `compute_official_cell_numbers.py` | 11746 | `239269aebc77` |
@@ -184,8 +185,11 @@
 | `export_verify_附件3口径.md` | 815 | `11fb98aaadf4` |
 | `figures/fig_q4_representative_day_official.pdf` | 49089 | `d81e1303c1d9` |
 | `figures/fig_q4_representative_day_official.png` | 182105 | `78177c57a8c6` |
+| `find_source_doc.md` | 5269 | `822ec8ca7255` |
+| `find_source_doc.py` | 2096 | `4f5692969ac0` |
 | `make_figure_representative_official.py` | 5371 | `c4fc49bfc189` |
 | `make_manifest.py` | 1428 | `f055758c59f2` |
+| `merge_teammate_paper.py` | 3978 | `1ae92c0ac634` |
 | `official_cell_numbers.csv` | 1635 | `ec0791e825c1` |
 | `official_cell_numbers.md` | 4311 | `8da786e539a2` |
 | `others/00_目录规则与协作约定.md` | 3510 | `946886b7b0dc` |
@@ -212,8 +216,10 @@
 | `others/原始附件_CUMCM2026_C/附件/附件5/result2.xlsx` | 18397 | `1c26494cfc6d` |
 | `others/原始附件_CUMCM2026_C/附件/附件5/result3.xlsx` | 265429 | `c59da470cabd` |
 | `others/原始附件_CUMCM2026_C/附件/附件5/result4-3.xlsx` | 265429 | `c59da470cabd` |
-| `paper/10.Q4_content.tex` | 22674 | `c16ae9c7be46` |
-| `paper/Q4_latex代码.txt` | 22674 | `c16ae9c7be46` |
+| `paper/10.Q4_content.tex` | 27654 | `0a1c7b498bf2` |
+| `paper/Q4_latex代码.txt` | 27654 | `0a1c7b498bf2` |
+| `paper/_build/_build_standalone.pdf` | 368288 | `d01b61e1bbdd` |
+| `paper/_build_standalone.tex` | 1594 | `31a5019fc06d` |
 | `path_resolution_check.md` | 1947 | `205c12358bc6` |
 | `probe_official_cell.md` | 11110 | `ef28b1ead6ef` |
 | `probe_report_logs.md` | 5075 | `c92a103084b2` |
@@ -222,3 +228,42 @@
 | `result4-2_附件3口径.xlsx` | 672750 | `cad38fb226e6` |
 | `verify_wyh_checklist_round3.md` | 4097 | `a3fb029213fd` |
 | `verify_wyh_checklist_round3.py` | 6835 | `7d8e4dcca6e8` |
+| `附件汇总/K/q4_2_settlement_R1_vs_R2.csv` | 28560 | `2993f59e6d60` |
+| `附件汇总/L/fig_q4_price_forecast.pdf` | 39329 | `03c14e09d430` |
+| `附件汇总/L/fig_q4_price_forecast.png` | 151713 | `30f4fce15bb5` |
+| `附件汇总/L/q4_price_forecast_monthly.csv` | 1018 | `4183bafd5580` |
+| `附件汇总/L/q4_price_forecast_report.md` | 2090 | `dddc07c0ba09` |
+| `附件汇总/L/q4_price_forecast_selection.csv` | 27160 | `d37b6d035107` |
+| `附件汇总/M/fig_q4_scenario_fan.pdf` | 42467 | `6418fe0754b7` |
+| `附件汇总/M/fig_q4_scenario_fan.png` | 133598 | `f99499980561` |
+| `附件汇总/M/q4_scenario_diagnostics_official.csv` | 32453 | `0ba843b699c0` |
+| `附件汇总/M/q4_scenario_diagnostics_q2.csv` | 32713 | `10f75f5242d3` |
+| `附件汇总/M/q4_scenario_report_official.md` | 1938 | `e37780495f61` |
+| `附件汇总/M/q4_scenario_report_q2.md` | 1933 | `0e8d27deefd4` |
+| `附件汇总/N/V_official_known_q2params_summary.csv` | 820 | `a9a2c59cb838` |
+| `附件汇总/N/V_official_unknown_q2params_summary.csv` | 839 | `e268ca2ac22e` |
+| `附件汇总/N/V_q2_known_q2params_summary.csv` | 820 | `ed1289ac903a` |
+| `附件汇总/N/q4_2_tuning_sensitivity.xlsx` | 11248 | `ee2428849561` |
+| `附件汇总/O/q4_2_band_allocation.csv` | 548 | `797265f3fd0d` |
+| `附件汇总/O/q4_2_export_verify.md` | 675 | `f6ebad2cfb74` |
+| `附件汇总/O/q4_2_plan_timing.csv` | 536 | `8199ce850253` |
+| `附件汇总/O/q4_2_structural_checks.csv` | 684 | `9ad5c0bdb6e6` |
+| `附件汇总/P/fig_q4_frontier_baseline.pdf` | 47115 | `c0cf433e8ffd` |
+| `附件汇总/P/fig_q4_frontier_baseline.png` | 90128 | `3f57d165af56` |
+| `附件汇总/P/fig_q4_main_vs_b1_cost_structure.pdf` | 62795 | `0650b9a4cd77` |
+| `附件汇总/P/fig_q4_main_vs_b1_cost_structure.png` | 109474 | `55ddc691e417` |
+| `附件汇总/P/q4_2_baselines.csv` | 755 | `82ad2b184cea` |
+| `附件汇总/P/q4_2_fig_main_vs_b1_data.csv` | 481 | `2dcfd70505c3` |
+| `附件汇总/P/q4_2_timing_main_vs_b1.csv` | 483 | `4f84bcbfc2d7` |
+| `附件汇总/Q/V_cap8000_summary.csv` | 751 | `4500711c9587` |
+| `附件汇总/Q/V_official_known_q2params_summary.csv` | 820 | `a9a2c59cb838` |
+| `附件汇总/Q/V_official_unknown_q2params_summary.csv` | 839 | `e268ca2ac22e` |
+| `附件汇总/Q/V_q2_known_q2params_summary.csv` | 820 | `ed1289ac903a` |
+| `附件汇总/Q/V_q2_unknown_risk_summary.csv` | 829 | `be49015b0bff` |
+| `附件汇总/Q/official_cell_numbers.csv` | 1635 | `ec0791e825c1` |
+| `附件汇总/Q/official_cell_numbers.md` | 4311 | `8da786e539a2` |
+| `附件汇总/Q/q4_2_experiments.csv` | 4303 | `7f5bf31cc1e6` |
+| `附件汇总/Q/result4-2.xlsx` | 672750 | `cad38fb226e6` |
+| `附件汇总/Q/口径说明.md` | 3303 | `496f89586716` |
+| `附件汇总/索引.md` | 4394 | `e80d305c9fb1` |
+| `附录候选清单.md` | 9003 | `5e9473a92e05` |
