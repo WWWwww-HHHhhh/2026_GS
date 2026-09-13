@@ -16,6 +16,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.colors import to_rgb
+from matplotlib.patheffects import Normal, Stroke
 
 HERE = Path(__file__).resolve().parent
 TABLES = HERE.parent / "Results" / "Tables"
@@ -27,33 +29,155 @@ LABELS = {"S0": "仅0:00", "S6": "+6:00", "S12": "+12:00", "S18": "+18:00",
           "S6_12": "+6:00,12:00", "Sall": "+6:00,12:00,18:00"}
 SPECIFIED = ("2025-03-20", "2025-06-21", "2025-09-23", "2025-12-21")
 
+# Q2 点预测基线的费用拆分（冻结的接口常量）。
+# 来源：All_Code/Q2_yy/Results/Tables/validated_cost_summary.csv，
+# 两者之和 = run_metadata.json 的 Q2_baseline_total_yuan = 14,708,963.49 元。
+Q2_BASE_PLAN_YUAN = 13885012.62256014
+Q2_BASE_EMERGENCY_YUAN = 823950.8718955689
+
 plt.rcParams.update({
     "font.sans-serif": ["Microsoft YaHei", "SimHei"],
     "axes.unicode_minus": False,
     "font.size": 10, "axes.linewidth": 0.7, "figure.dpi": 150,
     "savefig.bbox": "tight",
 })
-C_BASE, C_BLUE, C_ORANGE, C_GREEN, C_RED, C_SOC = "#667085", "#4E79A7", "#F28E2B", "#2E7D32", "#B94040", "#5B7B8C"
+C_BLUE, C_ORANGE, C_GREEN, C_RED, C_SOC = "#4E79A7", "#F28E2B", "#2E7D32", "#B94040", "#5B7B8C"
+C_INK, C_MUTED, C_GRID, C_CARD = "#283C4A", "#6B7B87", "#E7ECF0", "#FAFBFC"
+
+
+def tint(color, factor: float):
+    """把颜色朝白色方向稀释：factor=1 原色，factor=0 纯白。"""
+    r, g, b = to_rgb(color)
+    return (1 - (1 - r) * factor, 1 - (1 - g) * factor, 1 - (1 - b) * factor)
+
+
+def gradient_seg(ax, p0, p1, color, lw, bands: int = 34, tint_lo: float = 0.34,
+                 zorder: int = 3):
+    """两点之间的渐变连线：起点浅、终点饱和，用多段短线叠出来（纯矢量）。
+
+    渐变靠 tint() 逐段稀释，而不是 imshow —— imshow 会在 PDF 里留下光栅块，
+    放大后糊掉；叠线段在 PDF 里仍是矢量。
+    """
+    x0, y0 = p0
+    x1, y1 = p1
+    for k in range(bands):
+        f0, f1 = k / bands, (k + 1) / bands
+        factor = tint_lo + (1.0 - tint_lo) * ((k + 0.5) / bands)
+        ax.plot([x0 + (x1 - x0) * f0, x0 + (x1 - x0) * f1],
+                [y0 + (y1 - y0) * f0, y0 + (y1 - y0) * f1],
+                color=tint(color, factor), lw=lw, solid_capstyle="butt",
+                zorder=zorder)
+
+
+def gradient_seg2(ax, p0, p1, c0, c1, lw, bands: int = 44, zorder: int = 3):
+    """两点之间的双色渐变连线（起点 c0 → 终点 c1），纯矢量。
+
+    横向哑铃用：连线从「线性插值」的颜色渐变到「阶梯保持」的颜色，
+    读者不需要看图例就知道这根线把两种方法连在了一起。
+    """
+    x0, y0 = p0
+    x1, y1 = p1
+    a0, a1 = np.array(to_rgb(c0)), np.array(to_rgb(c1))
+    for k in range(bands):
+        f0, f1 = k / bands, (k + 1) / bands
+        t = (k + 0.5) / bands
+        base = a0 + (a1 - a0) * t
+        # 蓝→橙在 RGB 里直接插值，中段会掉到灰褐色；按 sin 曲线提亮中段即可干净过渡
+        lift = np.sin(np.pi * t) * 0.34
+        col = tuple(base + (1.0 - base) * lift)
+        ax.plot([x0 + (x1 - x0) * f0, x0 + (x1 - x0) * f1],
+                [y0 + (y1 - y0) * f0, y0 + (y1 - y0) * f1],
+                color=col, lw=lw, solid_capstyle="butt", zorder=zorder)
+
+
+def tidy_axes(ax, grid_axis: str = "y"):
+    """统一坐标区：卡片底 + 浅网格 + 去上/右轴脊。"""
+    ax.set_facecolor(C_CARD)
+    ax.set_axisbelow(True)
+    ax.grid(axis=grid_axis, color=C_GRID, linewidth=0.7)
+    ax.tick_params(axis="both", length=3, color="#A6B1BA", labelsize=9.5,
+                   labelcolor=C_INK)
+    for side in ["top", "right"]:
+        ax.spines[side].set_visible(False)
+    for side in ["left", "bottom"]:
+        ax.spines[side].set_color("#B5C0C8")
+
+
+def halo(linewidth: float = 2.6):
+    """文字白描边：压在网格线/参考线上也能认出来。"""
+    return [Stroke(linewidth=linewidth, foreground="white"), Normal()]
+
+
+def save_fig(fig, stem: str):
+    """同时输出 PDF（投稿）+ PNG（预览）+ SVG。"""
+    fig.savefig(FIGURES / f"{stem}.pdf")
+    fig.savefig(FIGURES / f"{stem}.png", dpi=220)
+    fig.savefig(FIGURES / f"{stem}.svg")
+    plt.close(fig)
 
 
 def fig1_strategy_cost(report: dict) -> dict:
-    """六策略全年实际费用对比"""
+    """六策略全年实际费用 vs Q2 点预测基线：哑铃图（基线点 → 策略点）。
+
+    原图是截断纵轴的柱状图（纵轴从 14.5 起），把 0.358 百万元（约 2.4%）的真实差异
+    放大成视觉上的数倍差——好看但不诚实。哑铃图的横轴保留绝对费用，连线长度就是
+    与基线的差额：省/超支方向与量级同时可见，且不会误导读者以为差了十几倍。
+    """
     costs = np.array([x["total_cost_yuan"] for x in report["strategies"]]) / 1e6
     baseline = report["Q2_baseline_yuan"] / 1e6
-    x = np.arange(len(ORDER))
-    fig, ax = plt.subplots(figsize=(7.6, 3.6), layout="constrained")
-    colors = [C_BASE, C_BLUE, C_BLUE, C_ORANGE, C_GREEN, C_GREEN]
-    bars = ax.bar(x, costs, color=colors, width=0.62)
-    ax.axhline(baseline, color=C_RED, ls="--", lw=1.2, label=f"Q2 点预测基线 {baseline:.3f} 百万元")
-    ax.set_xticks(x, [LABELS[k] for k in ORDER], fontsize=9)
-    ax.set_ylim(min(costs.min(), baseline) - 0.02, max(costs.max(), baseline) + 0.09)
-    ax.set_ylabel("全年实际购电费用 / 百万元")
-    for bar, v in zip(bars, costs):
-        ax.text(bar.get_x() + bar.get_width() / 2, v + 0.008, f"{v:.3f}", ha="center", fontsize=9)
-    ax.grid(axis="y", alpha=0.18); ax.set_axisbelow(True); ax.legend(frameon=False, fontsize=9)
-    fig.savefig(FIGURES / "q3_fig1_strategy_cost.pdf"); fig.savefig(FIGURES / "q3_fig1_strategy_cost.png", dpi=220)
-    fig.savefig(FIGURES / "q3_fig1_strategy_cost.svg")
-    plt.close(fig)
+    summary = pd.read_csv(TABLES / "strategy_summary.csv").set_index("strategy")
+    d_plan = np.array([summary.loc[k, "market_cost_yuan"] for k in ORDER]) - Q2_BASE_PLAN_YUAN
+    d_emg = np.array([summary.loc[k, "emergency_cost_yuan"] for k in ORDER]) - Q2_BASE_EMERGENCY_YUAN
+
+    y = np.arange(len(ORDER), dtype=float)
+    fig, ax = plt.subplots(figsize=(8.4, 4.6), layout="constrained")
+    fig.get_layout_engine().set(rect=(0.0, 0.115, 1.0, 0.885))
+    tidy_axes(ax, grid_axis="x")
+
+    best = int(np.argmin(costs))
+    ax.axhspan(best - 0.44, best + 0.44, color=tint(C_GREEN, 0.10), zorder=0)
+    ax.axvline(baseline, color=C_RED, ls=(0, (4, 3)), lw=1.1, zorder=2)
+
+    for i, cost in enumerate(costs):
+        color = C_GREEN if cost < baseline else C_RED
+        gradient_seg(ax, (baseline, y[i]), (cost, y[i]), color, 5.0,
+                     tint_lo=0.30, zorder=3)
+        ax.scatter([baseline], [y[i]], s=58, color="#9AA4B2", edgecolors="white",
+                   linewidths=1.3, zorder=5)
+        ax.scatter([cost], [y[i]], s=235, color=tint(color, 0.22),
+                   edgecolors="none", zorder=5)
+        ax.scatter([cost], [y[i]], s=150, color=color, edgecolors="white",
+                   linewidths=1.5, zorder=6)
+        delta_wan = (cost - baseline) * 100
+        ax.annotate(f"{delta_wan:+,.2f} 万元", xy=(cost, y[i]), xytext=(0, 12),
+                    textcoords="offset points", ha="center", va="bottom",
+                    fontsize=8.8, color=color, zorder=7, path_effects=halo())
+        ax.text(0.995, y[i] - 0.17, f"{cost:.3f}",
+                transform=ax.get_yaxis_transform(), ha="right", va="center",
+                fontsize=9.2, color=C_INK, zorder=7)
+        ax.text(0.995, y[i] + 0.18, f"({delta_wan / (baseline * 100) * 100:+.2f}%)",
+                transform=ax.get_yaxis_transform(), ha="right", va="center",
+                fontsize=8.4, color=color, zorder=7)
+
+    ax.set_yticks(y, [LABELS[k] for k in ORDER])
+    ax.set_ylim(len(ORDER) - 0.42, -0.92)
+    ax.set_xlim(14.40, 15.05)
+    ax.set_xticks(np.arange(14.4, 15.0, 0.1))
+    ax.set_xlabel("全年实际购电费用 / 百万元", color=C_INK)
+    ax.text(baseline + 0.007, -0.66, f"Q2 点预测基线 {baseline:.3f} 百万元",
+            ha="left", va="center", fontsize=8.8, color=C_RED, zorder=7,
+            path_effects=halo())
+    ax.text(0.995, -0.66, "总费用 / 百万元", transform=ax.get_yaxis_transform(),
+            ha="right", va="center", fontsize=8.8, color=C_MUTED, zorder=7)
+
+    span = costs.max() - costs.min()
+    fig.text(0.5, 0.005,
+             f"注：横轴已放大至差异区间（全距 {span:.3f} 百万元，约 {span / baseline * 100:.1f}%），"
+             f"灰点为 Q2 基线、彩色点为策略实际值，连线长度即与基线的差额。\n"
+             f"六策略的日前计划购电费均高于基线（{d_plan.min() / 1e4:+.2f} ~ {d_plan.max() / 1e4:+.2f} 万元），"
+             f"费用下降全部来自紧急购电费减少（{d_emg.min() / 1e4:+.2f} ~ {d_emg.max() / 1e4:+.2f} 万元）。",
+             ha="center", va="bottom", fontsize=8.2, color=C_MUTED)
+    save_fig(fig, "q3_fig1_strategy_cost")
     return dict(zip(ORDER, costs.tolist()))
 
 
@@ -79,27 +203,66 @@ def fig2_specified_day_savings() -> dict:
 
 
 def fig3_forecast_error() -> None:
-    """四个预报时刻的转换误差（MAE 与 WAPE，线性插值 vs 阶梯保持）"""
+    """四个发布时刻的转换误差：线性插值 vs 阶梯保持（横向哑铃图）。
+
+    两种转换方式只有两个水平，横向哑铃比竖向斜率图更适合宽扁排版：
+    斜率图一旦拉宽，折线会被压平，"斜率=倍数"这个读法就废了；
+    哑铃图把每一行压成一根水平连线，行高与图宽无关，拉多宽都还能读。
+    连线用双色渐变（蓝=线性插值 → 橙=阶梯保持），左右两端直标绝对值，
+    上方标 ×N 倍数——四个时刻的 ×N 全部大于 1，即阶梯保持全面更差。
+    """
     a = pd.read_csv(TABLES / "forecast_conversion_audit.csv")
     lin = a[a["conversion"] == "linear_endpoint"].set_index("issue_hour")
     step = a[a["conversion"] == "step"].set_index("issue_hour")
     hours = [0, 6, 12, 18]
-    x = np.arange(len(hours)); w = 0.36
-    fig, ax1 = plt.subplots(figsize=(7.2, 3.5), layout="constrained")
-    b1 = ax1.bar(x - w / 2, [lin.loc[h, "MAE_kwh_per_slot"] for h in hours], w,
-                 color=C_BLUE, label="线性插值 MAE")
-    b2 = ax1.bar(x + w / 2, [step.loc[h, "MAE_kwh_per_slot"] for h in hours], w,
-                 color="#A9C0DC", label="阶梯保持 MAE")
-    ax1.set_xticks(x, [f"{h}:00 发布\n线性插值 WAPE {lin.loc[h,'WAPE']*100:.1f}%" for h in hours])
-    ax1.set_ylabel("剩余时段平均绝对误差 / (kWh/时段)")
-    ax1.bar_label(b1, fmt="%.1f", fontsize=8, padding=1)
-    ax1.bar_label(b2, fmt="%.1f", fontsize=8, padding=1)
-    ax1.set_ylim(0, max(step["MAE_kwh_per_slot"].max(), lin["MAE_kwh_per_slot"].max()) * 1.28)
-    ax1.legend(frameon=False, fontsize=9, ncol=2, loc="upper right")
-    ax1.grid(axis="y", alpha=0.18); ax1.set_axisbelow(True)
-    fig.savefig(FIGURES / "q3_fig3_forecast_conversion_error.pdf"); fig.savefig(FIGURES / "q3_fig3_forecast_conversion_error.png", dpi=220)
-    fig.savefig(FIGURES / "q3_fig3_forecast_conversion_error.svg")
-    plt.close(fig)
+    v_lin = [float(lin.loc[h, "MAE_kwh_per_slot"]) for h in hours]
+    v_step = [float(step.loc[h, "MAE_kwh_per_slot"]) for h in hours]
+    y = np.arange(len(hours), dtype=float)
+
+    fig, ax = plt.subplots(figsize=(11.2, 3.4), layout="constrained")
+    fig.get_layout_engine().set(rect=(0.0, 0.145, 1.0, 0.855))
+    tidy_axes(ax, grid_axis="x")
+    ax.set_ylim(len(hours) - 0.44, -0.78)
+    ax.set_xlim(-5.0, 80.0)
+
+    for i, (v0, v1) in enumerate(zip(v_lin, v_step)):
+        gradient_seg2(ax, (v0, y[i]), (v1, y[i]), C_BLUE, C_ORANGE, 5.4,
+                      bands=44, zorder=3)
+        ax.scatter([v0], [y[i]], s=165, color=C_BLUE, edgecolors="white",
+                   linewidths=1.6, zorder=5)
+        ax.scatter([v1], [y[i]], s=165, color=C_ORANGE, edgecolors="white",
+                   linewidths=1.6, zorder=5)
+        ax.annotate(f"{v0:.1f}", xy=(v0, y[i]), xytext=(-9, 0),
+                    textcoords="offset points", ha="right", va="center",
+                    fontsize=9.4, color=C_BLUE, zorder=6, path_effects=halo())
+        ax.annotate(f"{v1:.1f}", xy=(v1, y[i]), xytext=(9, 0),
+                    textcoords="offset points", ha="left", va="center",
+                    fontsize=9.4, color=C_ORANGE, zorder=6, path_effects=halo())
+        ax.annotate(f"×{v1 / v0:.1f}", xy=((v0 + v1) / 2, y[i]), xytext=(0, 11),
+                    textcoords="offset points", ha="center", va="bottom",
+                    fontsize=8.8, color=C_INK, zorder=6, path_effects=halo())
+
+    handles = [
+        plt.Line2D([], [], color=C_BLUE, lw=0, marker="o", markersize=7.5,
+                   markeredgecolor="white", label="线性插值"),
+        plt.Line2D([], [], color=C_ORANGE, lw=0, marker="o", markersize=7.5,
+                   markeredgecolor="white", label="阶梯保持"),
+    ]
+    ax.legend(handles=handles, ncol=2, frameon=False, fontsize=9.4,
+              loc="lower center", bbox_to_anchor=(0.5, 1.005), borderaxespad=0,
+              handlelength=0.9, columnspacing=2.6)
+
+    ax.set_yticks(y, [f"{h}:00 发布" for h in hours])
+    ax.set_xticks(np.arange(0, 81, 10))
+    ax.set_xlabel("剩余时段平均绝对误差 / (kWh/时段)", color=C_INK)
+
+    fig.text(0.5, 0.005,
+             "×N 为阶梯保持相对线性插值的误差倍数，四个发布时刻全部大于 1（阶梯保持全面更差）；"
+             "四个时刻的 WAPE（线性插值 → 阶梯保持）："
+             + "、".join(f"{lin.loc[h, 'WAPE'] * 100:.1f}% → {step.loc[h, 'WAPE'] * 100:.1f}%"
+                         for h in hours),
+             ha="center", va="bottom", fontsize=8.2, color=C_MUTED)
+    save_fig(fig, "q3_fig3_forecast_conversion_error")
 
 
 def fig4_typical_day(day: str = "2025-06-21") -> None:

@@ -1,5 +1,5 @@
 % !TeX root = ../main.tex
-\section{问题三：多时点光伏预报驱动的滚动购电优化}
+\section{多时点光伏预报驱动的滚动购电优化}
 \subsection{模型概述}
 针对光伏预报在日内多次更新的特点，本文建立基于联合场景和CVaR的滚动购电优化模型。
 每日 \(0{:}00\) 根据日前负荷预测和光伏预报制定全天计划购电与储能调度方案。
@@ -76,17 +76,14 @@
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.7\textwidth]
-    {../All_Code/Q3/Results/Pictures/q3_fig3_forecast_conversion_error.pdf}
-    \caption{光伏预报转换至10分钟尺度的误差对比}
+    \includegraphics[width=0.9\textwidth]
+    {../All\_Code/Q3/Results/Pictures/q3\_fig3\_forecast\_conversion\_error.pdf}
+    \caption{光伏预报转换方法的误差对比}
     \label{fig:q3_forecast_error}
 \end{figure}
 
-由图可见，线性插值在四个发布时刻的平均绝对误差均低于阶梯保持。
-\(18{:}00\) 预报的平均绝对误差仅为每时段
-\(1.67\,\mathrm{kWh}\)，但此后剩余光伏电量较小，导致其WAPE达到
-\(51.45\%\)。
-因此，各发布时刻是否用于调整购电计划，仍需根据其对实际结算费用的影响判断。
+由图可见，线性插值在四个发布时刻的平均绝对误差均低于阶梯保持，其中 \(12{:}00\) 的改善最为明显。
+\(18{:}00\) 后的光伏电量较小，绝对误差虽低但WAPE仍达到 \(51.5\%\)，因此该时点是否用于调整还需结合实际费用判断。
 
 \subsubsection{负荷与光伏联合场景构造}
 
@@ -211,7 +208,6 @@ $S_{6,12}$ 和 $S_{\mathrm{all}}$ 六种预报更新策略。
 \begin{minipage}[t]{0.49\textwidth}
     \vspace{0pt}
     \centering
-    \captionof{table}{六种预报更新策略的全年结算结果}
     \label{tab:q3_strategies}
     \scriptsize
     \setlength{\tabcolsep}{2.1pt}
@@ -235,10 +231,13 @@ $S_{6,12}$ 和 $S_{\mathrm{all}}$ 六种预报更新策略。
         \bottomrule
     \end{tabular}%
     }
+    \vspace{0.5pt}
+    \captionof{table}{六种预报更新策略的全年结算结果}
+
 \end{minipage}
 \hfill
-\begin{minipage}[t]{0.49\textwidth}
-    \vspace{2.5em}
+\begin{minipage}[t]{0.5\textwidth}
+    \vspace{1.7em}
     \centering
     \includegraphics[width=\linewidth]
     {../All_Code/Q3/Results/Pictures/q3_fig1_strategy_cost.pdf}
@@ -247,15 +246,9 @@ $S_{6,12}$ 和 $S_{\mathrm{all}}$ 六种预报更新策略。
 \end{minipage}
 \par}
 \vspace{0.8em}
-图中虚线表示问题二所得全年购电费用，仅用于前后两问的结果对照。
-六种日内更新策略的经济性主要依据其全年实际费用进行比较。
-全时点更新策略 \(S_{\mathrm{all}}\) 的全年总费用为
-\(1451.76\) 万元，相比仅采用零点预报的 \(S_0\) 节省
-\(34.37\) 万元，降幅为 \(2.31\%\)。
-紧急购电量由
-\(214020.65\,\mathrm{kWh}\) 降至
-\(154171.38\,\mathrm{kWh}\)，下降 \(27.96\%\)。
-因此，预报更新的主要收益来自减少预测偏差引起的高价紧急购电。
+图中虚线表示问题二的全年购电费用，仅作为结果对照。
+全时点更新策略 \(S_{\mathrm{all}}\) 相比 \(S_0\) 节省 \(34.37\) 万元，降幅为 \(2.31\%\)，紧急购电量由 \(214020.65\,\mathrm{kWh}\) 降至 \(154171.38\,\mathrm{kWh}\)。
+结果表明，日内预报更新主要通过减少紧急购电降低总费用。
 
 预报价值并不随发布时间单调增加。
 单独采用 \(18{:}00\) 预报的 \(S_{18}\) 比 \(S_0\) 多支出约

@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#55758f"/>
+    </marker>
+    <style>
+      .title { font: 700 34px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #18364a; }
+      .subtitle { font: 400 17px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #607584; }
+      .layer { font: 700 18px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #ffffff; letter-spacing: 2px; }
+      .head { font: 700 24px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #18364a; }
+      .headLight { font: 700 24px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #ffffff; }
+      .body { font: 400 18px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #314b5d; }
+      .bodySmall { font: 400 16px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #4c6474; }
+      .strong { font: 700 18px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #24485e; }
+      .pill { font: 600 16px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #31576d; }
+      .output { font: 700 20px 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill: #ffffff; }
+      .line { stroke: #55758f; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .thin { stroke: #9bb0bf; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#ffffff"/>
+  <text x="800" y="52" text-anchor="middle" class="title">实时波动电价下的双路径购电优化框架</text>
+  <text x="800" y="82" text-anchor="middle" class="subtitle">统一刻画价格不确定性，分别重构日前计划与日内滚动决策</text>
+
+  <!-- Input layer -->
+  <rect x="55" y="118" width="130" height="42" rx="8" fill="#55758f"/>
+  <text x="120" y="145" text-anchor="middle" class="layer">数据输入</text>
+
+  <rect x="225" y="108" width="350" height="72" rx="14" fill="#eef5f9" stroke="#9bb9ca" stroke-width="2"/>
+  <text x="400" y="138" text-anchor="middle" class="strong">附件4</text>
+  <text x="400" y="163" text-anchor="middle" class="bodySmall">全年144时段实时波动电价</text>
+
+  <rect x="625" y="108" width="350" height="72" rx="14" fill="#eef5f9" stroke="#9bb9ca" stroke-width="2"/>
+  <text x="800" y="138" text-anchor="middle" class="strong">问题二数据链</text>
+  <text x="800" y="163" text-anchor="middle" class="bodySmall">因果负荷预测与日前光伏预测</text>
+
+  <rect x="1025" y="108" width="350" height="72" rx="14" fill="#fff5ea" stroke="#e4ad70" stroke-width="2"/>
+  <text x="1200" y="138" text-anchor="middle" class="strong">附件3多时点预报</text>
+  <text x="1200" y="163" text-anchor="middle" class="bodySmall">0点、6点、12点、18点光伏预报</text>
+
+  <!-- Arrows to information layer -->
+  <path d="M400 180 L400 212 L640 212 L640 232" class="line"/>
+  <path d="M800 180 L800 232" class="line"/>
+  <path d="M1200 180 L1200 212 L960 212 L960 232" class="line"/>
+
+  <!-- Information layer -->
+  <rect x="55" y="252" width="130" height="42" rx="8" fill="#55758f"/>
+  <text x="120" y="279" text-anchor="middle" class="layer">信息与结算</text>
+
+  <rect x="225" y="228" width="1150" height="132" rx="18" fill="#f8fbfd" stroke="#7fa2b8" stroke-width="2.5"/>
+  <line x1="608" y1="250" x2="608" y2="338" class="thin"/>
+  <line x1="992" y1="250" x2="992" y2="338" class="thin"/>
+
+  <circle cx="300" cy="277" r="23" fill="#6f98b3"/>
+  <text x="300" y="284" text-anchor="middle" class="headLight">1</text>
+  <text x="345" y="273" class="strong">因果电价预测</text>
+  <text x="345" y="303" class="bodySmall">分解日内形状与日级水平</text>
+  <text x="345" y="328" class="bodySmall">决策时不读取目标日实际价格</text>
+
+  <circle cx="675" cy="277" r="23" fill="#6f98b3"/>
+  <text x="675" y="284" text-anchor="middle" class="headLight">2</text>
+  <text x="720" y="273" class="strong">三维联合场景</text>
+  <text x="720" y="303" class="bodySmall">价格、负荷与光伏残差同步抽样</text>
+  <text x="720" y="328" class="bodySmall">保留日内结构及变量间相关性</text>
+
+  <circle cx="1058" cy="277" r="23" fill="#d8944f"/>
+  <text x="1058" y="284" text-anchor="middle" class="headLight">3</text>
+  <text x="1103" y="273" class="strong">真实逐时段结算</text>
+  <text x="1103" y="303" class="bodySmall">计划购电按实际价格计费</text>
+  <text x="1103" y="328" class="bodySmall">供电缺口按5倍价格紧急购电</text>
+
+  <!-- Shared physical layer -->
+  <path d="M800 360 L800 397" class="line"/>
+  <rect x="225" y="402" width="1150" height="74" rx="14" fill="#e8f1f6" stroke="#91adbe" stroke-width="2"/>
+  <text x="335" y="432" class="strong">共享模型底座</text>
+  <rect x="510" y="417" width="175" height="38" rx="19" fill="#ffffff" stroke="#b2c5d1"/>
+  <text x="598" y="442" text-anchor="middle" class="pill">时段电量平衡</text>
+  <rect x="710" y="417" width="175" height="38" rx="19" fill="#ffffff" stroke="#b2c5d1"/>
+  <text x="798" y="442" text-anchor="middle" class="pill">储能状态递推</text>
+  <rect x="910" y="417" width="175" height="38" rx="19" fill="#ffffff" stroke="#b2c5d1"/>
+  <text x="998" y="442" text-anchor="middle" class="pill">容量与功率边界</text>
+  <rect x="1110" y="417" width="205" height="38" rx="19" fill="#ffffff" stroke="#b2c5d1"/>
+  <text x="1212" y="442" text-anchor="middle" class="pill">CVaR尾部风险控制</text>
+
+  <!-- Branch arrows -->
+  <path d="M800 476 L800 506 L485 506 L485 532" class="line"/>
+  <path d="M800 476 L800 506 L1115 506 L1115 532" class="line"/>
+
+  <!-- Q4-2 panel -->
+  <rect x="170" y="532" width="630" height="245" rx="18" fill="#f5f9fc" stroke="#6f98b3" stroke-width="3"/>
+  <rect x="170" y="532" width="630" height="58" rx="18" fill="#557f9a"/>
+  <path d="M170 572 L170 590 L800 590 L800 572" fill="#557f9a"/>
+  <text x="485" y="568" text-anchor="middle" class="headLight">问题四第二小问　日前风险规避优化</text>
+
+  <text x="215" y="626" class="strong">决策时点</text>
+  <text x="350" y="626" class="body">每日0点一次性制定144时段计划</text>
+  <text x="215" y="666" class="strong">模型结构</text>
+  <text x="350" y="666" class="body">两阶段随机线性规划与CVaR</text>
+  <text x="215" y="706" class="strong">核心决策</text>
+  <text x="350" y="706" class="body">计划购电、充放电与储电状态</text>
+  <text x="215" y="746" class="strong">不确定性</text>
+  <text x="350" y="746" class="body">价格、负荷与日前光伏联合场景</text>
+
+  <!-- Q4-3 panel -->
+  <rect x="830" y="532" width="630" height="245" rx="18" fill="#fff9f2" stroke="#d8944f" stroke-width="3"/>
+  <rect x="830" y="532" width="630" height="58" rx="18" fill="#c9823f"/>
+  <path d="M830 572 L830 590 L1460 590 L1460 572" fill="#c9823f"/>
+  <text x="1145" y="568" text-anchor="middle" class="headLight">问题四第三小问　多时点滚动调整</text>
+
+  <text x="875" y="626" class="strong">决策时点</text>
+  <text x="1010" y="626" class="body">0点计划，6点、12点、18点更新</text>
+  <text x="875" y="666" class="strong">模型结构</text>
+  <text x="1010" y="666" class="body">滚动随机规划与分段调整费用</text>
+  <text x="875" y="706" class="strong">更新规则</text>
+  <text x="1010" y="706" class="body">固定已执行决策，仅优化剩余时段</text>
+  <text x="875" y="746" class="strong">策略比较</text>
+  <text x="1010" y="746" class="body">比较六种预报更新时间组合</text>
+
+  <!-- Outputs -->
+  <path d="M485 777 L485 815" class="line"/>
+  <path d="M1145 777 L1145 815" class="line"/>
+  <rect x="305" y="816" width="360" height="54" rx="12" fill="#557f9a"/>
+  <text x="485" y="850" text-anchor="middle" class="output">日前购电策略　result4-2.xlsx</text>
+  <rect x="965" y="816" width="360" height="54" rx="12" fill="#c9823f"/>
+  <text x="1145" y="850" text-anchor="middle" class="output">滚动调整策略　result4-3.xlsx</text>
+</svg>
