@@ -7,8 +7,6 @@
 
 \subsection{符号说明}
 % 表3：问题二剩余符号表
-\subsection{符号说明}
-
 \begin{table}[H]
     \centering
     \caption{问题二符号说明}
@@ -132,138 +130,121 @@
 \subsubsection{目标函数}
 
 根据前文生成的负荷与光伏场景，本文建立两阶段随机线性规划模型。
-第一阶段在每日 \(0{:}00\) 确定计划购电量 \(x_t\)、计划充电量 \(c_t\)、计划放电量 \(r_t\) 和储电量 \(s_t\)，这些变量在全部场景中保持一致。
-第二阶段根据场景 \(m\) 下的负荷与光伏水平，确定计划电提取量、紧急购电量、光伏利用量及相应弃电量，用于刻画日前计划在不同场景下的执行结果。
+第一阶段在每日 $0{:}00$ 确定计划购电量 $x_t$、计划充电量 $c_t$、
+计划放电量 $r_t$ 和储电量 $s_t$，且这些决策在全部场景中保持一致。
+第二阶段根据场景 $m$ 下的负荷与光伏水平，确定计划电提取量、
+紧急购电量、光伏利用量及弃电量，以刻画日前方案在不同场景下的执行结果。
 
-由于计划购电按正常电价结算，紧急购电按对应时段电价的5倍结算。
-场景 \(m\) 下的购电费用可设为
+计划购电按正常电价结算，紧急购电按对应时段电价的5倍结算，
+故场景 $m$ 下的购电费用为
 \begin{equation}
-    C_m
-    =
-    \sum_{t=1}^{T}\pi_t x_t
-    +
-    5\sum_{t=1}^{T}\pi_t e_t^m
-    \label{eq:q2_scenario_cost}
+C_m
+=
+\sum_{t=1}^{T}\pi_t x_t
++
+5\sum_{t=1}^{T}\pi_t e_t^m .
+\label{eq:q2_scenario_cost}
 \end{equation}
 
-为同时控制平均购电费用和高费用场景的风险，
-本问目标函数采用期望费用与条件风险价值相结合的方式\cite{ref4}：
+为兼顾平均购电费用与高费用场景风险，采用期望费用与
+条件风险价值相结合的目标函数\cite{ref4}：
 \begin{equation}
 \begin{aligned}
-    \min J
-    ={}&
-    (1-\beta)\frac{1}{M}\sum_{m=1}^{M}C_m\\
-    &+\beta\left[
-    \zeta+
-    \frac{1}{(1-\alpha)M}
-    \sum_{m=1}^{M}q_m
-    \right]\\
-    &+\varepsilon\sum_{t=1}^{T}(c_t+r_t)
-    +\kappa_2(\xi^++\xi^-)
+\min J
+={}&
+(1-\beta)\frac{1}{M}\sum_{m=1}^{M}C_m\\
+&+\beta\left[
+\zeta+
+\frac{1}{(1-\alpha)M}
+\sum_{m=1}^{M}q_m
+\right]\\
+&+\varepsilon\sum_{t=1}^{T}(c_t+r_t)
++\kappa_2(\xi^++\xi^-).
 \end{aligned}
 \label{eq:q2_objective}
 \end{equation}
-其中，\(\alpha=0.90\) 为置信水平，\(\beta=0.20\) 为风险权重。
-\(\zeta\) 表示费用分布的风险阈值，\(q_m\) 表示场景费用超过该阈值的部分。
-正则项用于减少不必要的充放电循环，软终端项用于限制日末储电量偏离期初水平。
-两项仅用于改善调度方案，不计入实际购电费用。
-
+其中，$\alpha=0.90$ 为置信水平，$\beta$ 为风险权重；
+$\zeta$ 和 $q_m$ 分别表示费用风险阈值及场景超额费用。
+储能吞吐正则项用于减少不必要的充放电循环，软终端项用于限制
+日末储电量偏离期初水平，二者均不计入实际购电费用。
+CVaR的线性化形式见附录~\ref{app:q2_cvar_settlement}。
 
 \subsubsection{场景调度与储能约束}
 
-场景实现后，日前购电量 \(x_t\) 已经确定，但允许部分电量不被提取。
-设 \(y_t^m\) 和 \(u_t^m\) 分别为场景 \(m\) 下的计划电提取量和未提取量，\(g_t^m\) 和 \(w_t^m\) 分别为光伏利用量和弃光量，则
+场景实现后，日前购电及充放电计划保持不变。
+设 $y_t^m,u_t^m$ 分别为场景 $m$ 下的计划电提取量和未提取量，
+$g_t^m,w_t^m$ 分别为光伏利用量和弃光量，则
 \begin{equation}
 \begin{aligned}
-    y_t^m+u_t^m &= x_t,
-    &\qquad 0\leq y_t^m &\leq x_t,\\
-    g_t^m+w_t^m &= G_t^m,
-    &0\leq g_t^m &\leq G_t^m
+y_t^m+u_t^m &= x_t,
+&\qquad 0\leq y_t^m &\leq x_t,\\
+g_t^m+w_t^m &= G_t^m,
+&0\leq g_t^m &\leq G_t^m .
 \end{aligned}
 \label{eq:q2_energy_allocation}
 \end{equation}
 
-在完成计划电和光伏电量分配后，还需保证各场景下的供需平衡。
-充放电计划 \(c_t,r_t\) 在日前确定，场景实现后保持不变。
-当可用电量不足时，由紧急购电量 \(e_t^m\) 补足，当固定放电产生多余供给时，将其记为供给过剩弃电量 \(v_t^m\)。
-因此，各场景满足
+当场景中的可用电量不足时，以紧急购电量 $e_t^m$ 补足；
+固定放电产生的多余供给记为过剩弃电量 $v_t^m$。
+各场景的供需平衡满足
 \begin{equation}
-    y_t^m+e_t^m+g_t^m+r_t
-    =
-    L_t^m+c_t+v_t^m
+y_t^m+e_t^m+g_t^m+r_t
+=
+L_t^m+c_t+v_t^m,
+\qquad e_t^m,v_t^m\geq0 .
 \label{eq:q2_scenario_balance}
 \end{equation}
-其中，\(e_t^m,v_t^m\geq0\)。
 
-由于计划充放电量在各场景中保持一致，因此储能状态也由同一组充放电计划决定。
-考虑充放电损耗后，储电量按下式逐时段递推
+由于充放电计划在各场景中保持一致，储能状态也由同一组计划决定。
+考虑充放电损耗后，储电量逐时段递推为
 \begin{equation}
-    s_t
-    =
-    s_{t-1}
-    +\eta_c c_t
-    -\frac{r_t}{\eta_r},
-    \qquad
-    \eta_c=\eta_r=0.9
+s_t
+=
+s_{t-1}
++\eta_c c_t
+-\frac{r_t}{\eta_r},
+\qquad
+\eta_c=\eta_r=0.9 .
 \label{eq:q2_storage_transition}
 \end{equation}
-储电量满足 \(1200\leq s_t\leq10800\)，单时段充电量和放电量均不超过 \(833.333\,\mathrm{kWh}\)。
+储电量满足 $1200\leq s_t\leq10800$，单时段充电量和放电量均不超过
+$833.333\,\mathrm{kWh}$。
 
-但是，逐时段状态约束只能保证日内运行安全，不能限制日末储电量偏离期初水平。
-为防止储电量在逐日滚动中持续漂移，本文对一般调度日设置软终端约束：
+为防止储电量在逐日滚动过程中持续漂移，一般调度日设置软终端约束
 \begin{equation}
-    s_T-s_0=\xi^+-\xi^-,
-    \qquad
-    \xi^+,\xi^-\geq0
+s_T-s_0=\xi^+-\xi^-,
+\qquad
+\xi^+,\xi^-\geq0 ,
 \label{eq:q2_soft_terminal}
 \end{equation}
-其中偏差量通过目标函数中的
-\(\kappa_2(\xi^++\xi^-)\) 进行惩罚。
-在2025年12月31日设置
-\(s_T=6000\,\mathrm{kWh}\)，保证全年储能状态闭合。
-
-上述约束确定了各场景对应的购电费用 \(C_m\)。
-为将目标函数中的CVaR写成线性形式，本文最后引入了非负超额费用变量 \(q_m\)，并设置
-\begin{equation}
-    q_m\geq C_m-\zeta,
-    \qquad
-    q_m\geq0
-\label{eq:q2_cvar_linearization}
-\end{equation}
+并通过目标函数中的 $\kappa_2(\xi^++\xi^-)$ 惩罚日末偏差。
+在2025年12月31日固定
+$s_T=6000\,\mathrm{kWh}$，保证全年储能状态闭合。
 
 \subsection{滚动求解与参数标定}
 
-每日调度模型为线性规划模型。以2025年1月1日 0:00 的
-$6000\,\mathrm{kWh}$ 储电量为初始状态，逐日求解购电与储能方案，并将当日日末储电量传递为次日初始状态。模型采用稀疏矩阵存储，并通过 SciPy 调用 HiGHS 求解器；仅接受求解状态为最优且约束违反量不超过 $10^{-5}$ 的结果。模型的标准形式、规模及数值检验方法见附录~\ref{app:q2_solution_details}。
+模型以2025年1月1日 $0{:}00$ 的
+$6000\,\mathrm{kWh}$ 储电量为初始状态，逐日求解购电与储能方案，
+并将当日日末储电量传递为次日期初状态。
+真实负荷与光伏仅用于日前方案的逐时段结算，不再用于事后调整充放电量；
+完整结算规则、线性规划形式和数值检验方法见
+附录~\ref{app:q2_solution_details}。
 
-获得日前方案后，真实负荷与光伏数据仅用于逐时段结算，不再重新优化充、放电量。设扣除储能放电后的净需求为 $D_t$，则
-\begin{equation}
-\begin{aligned}
-    D_t&=\max\{0,L_t+c_t-r_t\},\\
-    g_t&=\min\{G_t,D_t\},\\
-    y_t&=\min\{x_t,D_t-g_t\},\\
-    e_t&=\max\{0,D_t-g_t-y_t\}.
-\end{aligned}
-\label{eq:q2_actual_settlement}
-\end{equation}
-各时段依次使用光伏、计划购电和紧急购电满足需求；未利用的光伏记为弃光，固定放电造成的多余供给记为过剩弃电。计划购电按申报量全额计费，紧急购电价格为对应时段电价的5倍。结算过程仅使用当前及此前已经实现的数据，因而不存在未来信息泄漏。
-
-为避免正式报告期数据参与参数选择，本文将1月1日至14日设为预热期，1月15日至31日设为验证期，并将2月1日至12月31日作为正式报告期。以问题一所得储能边际价值的中位数
+场景数、风险权重和软终端系数均使用正式报告期之前的数据完成标定。
+以问题一所得储能边际价值中位数
 $\kappa_{2,\mathrm{base}}=0.531667$
-为软终端系数的缩放基准，在验证期内对场景数、风险权重和软终端系数进行组合标定，具体参数范围及筛选方法见附录~\ref{app:q2_parameter_calibration}。
+为软终端系数基准，并令
+$\kappa_2=\lambda\kappa_{2,\mathrm{base}}$。
+具体候选范围与筛选准则见附录~\ref{app:q2_parameter_calibration}。
 
-最终选定参数为
-\begin{equation}
-    M^\ast=30,\qquad
-    \beta^\ast=0.20,\qquad
-    \lambda^\ast=1,\qquad
-    \kappa_2^\ast=0.531667.
-    \label{eq:q2_optimal_parameters}
-\end{equation}
+最终选取
+$M^\ast=30$、$\beta^\ast=0.20$、
+$\lambda^\ast=1$ 和 $\kappa_2^\ast=0.531667$。
 该组合在验证期的总费用为 $1016195.38$ 元，紧急购电费用为
 $16517.07$ 元，较基准组合分别降低 $59340.07$ 元和
-$1497.35$ 元，且期末储电量恢复至 $6000\,\mathrm{kWh}$。参数于1月31日确定，并在正式报告期内保持不变。
-
+$1497.35$ 元，且期末储电量恢复至
+$6000\,\mathrm{kWh}$。
+参数于1月31日确定，并在正式报告期内保持不变。
 
 \subsection{求解结果与分析}
 
@@ -483,7 +464,7 @@ $1497.35$ 元，且期末储电量恢复至 $6000\,\mathrm{kWh}$。参数于1月
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]
+    \includegraphics[width=0.85\textwidth]
     {../All_Code/Q2_yy/Results/Pictures/fig_q2_plan_settlement.pdf}
     \caption{代表日计划购电与实际结算结果}
     \label{fig:q2_plan_settlement}

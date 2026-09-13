@@ -177,32 +177,204 @@ $10^{-4}$ 元。充电和放电分别发生于45个和37个时段，通道启用
 \section{问题二滚动求解与参数标定细节}
 \label{app:q2_solution_details}
 
-\subsection{线性规划形式与求解设置}
+\subsection{CVaR线性化与场景费用}
+\label{app:q2_cvar_settlement}
 
-每日调度模型整理为标准线性规划形式
+场景 $m$ 下的购电费用为
+\begin{equation}
+C_m
+=
+\sum_{t=1}^{T}\pi_t x_t
++
+5\sum_{t=1}^{T}\pi_t e_t^m .
+\label{eq:app_q2_scenario_cost}
+\end{equation}
+
+为将正文目标函数中的CVaR写成线性形式，引入风险阈值
+$\zeta$ 和非负超额费用变量 $q_m$，并设置
+\begin{equation}
+q_m\geq C_m-\zeta,
+\qquad
+q_m\geq0,
+\qquad m=1,\ldots,M .
+\label{eq:app_q2_cvar_linearization}
+\end{equation}
+因此，在置信水平 $\alpha$ 下，场景费用的条件风险价值写为
+\begin{equation}
+\operatorname{CVaR}_{\alpha}(C)
+=
+\zeta+
+\frac{1}{(1-\alpha)M}
+\sum_{m=1}^{M}q_m .
+\label{eq:app_q2_cvar}
+\end{equation}
+当目标函数最小时，$q_m$ 自动取
+$\max\{C_m-\zeta,0\}$，从而度量场景费用超过风险阈值的部分。
+
+\subsection{真实数据的逐时段结算}
+
+日前模型求得计划购电量 $x_t$、计划充电量 $c_t$ 和计划放电量
+$r_t$ 后，按照实际负荷和实际光伏进行逐时段结算。
+储能充放电计划严格执行，不根据尚未实现的真实数据重新调整。
+
+设时段 $t$ 扣除计划放电后的净需求为
+\begin{equation}
+D_t=L_t+c_t-r_t .
+\label{eq:app_q2_net_demand}
+\end{equation}
+当 $D_t\geq0$ 时，依次使用光伏、计划购电和紧急购电满足需求：
 \begin{equation}
 \begin{aligned}
-    \min_{\boldsymbol z}\quad
-    &\boldsymbol f^{\mathrm T}\boldsymbol z,\\
-    \mathrm{s.t.}\quad
-    &\boldsymbol A_{\mathrm{eq}}\boldsymbol z
-    =\boldsymbol b_{\mathrm{eq}},\\
-    &\boldsymbol A_{\mathrm{ub}}\boldsymbol z
-    \leq\boldsymbol b_{\mathrm{ub}},\\
-    &\boldsymbol l\leq\boldsymbol z\leq\boldsymbol u,
+g_t&=\min\{G_t,D_t\},\\
+y_t&=\min\{x_t,D_t-g_t\},\\
+e_t&=\max\{0,D_t-g_t-y_t\},\\
+w_t&=G_t-g_t .
+\end{aligned}
+\label{eq:app_q2_actual_settlement}
+\end{equation}
+其中，$g_t$ 为实际利用的光伏电量，$y_t$ 为计划电提取量，
+$e_t$ 为紧急购电量，$w_t$ 为弃光量。
+
+当 $D_t<0$ 时，说明固定放电产生的供给超过负荷与充电需求，
+多余电量记为过剩弃电量
+\begin{equation}
+v_t=\max\{0,-D_t\}.
+\label{eq:app_q2_supply_spill}
+\end{equation}
+由此，实际电量平衡满足
+\begin{equation}
+y_t+e_t+g_t+r_t
+=
+L_t+c_t+v_t .
+\label{eq:app_q2_actual_balance}
+\end{equation}
+
+实际储电量按照已经确定的充放电计划更新：
+\begin{equation}
+s_t
+=
+s_{t-1}
++\eta_c c_t
+-\frac{r_t}{\eta_r}.
+\label{eq:app_q2_actual_soc}
+\end{equation}
+各时段计划购电按申报量全额计费，紧急购电按对应电价的5倍计费，
+故实际日购电费用为
+\begin{equation}
+C^{\mathrm{actual}}
+=
+\sum_{t=1}^{T}\pi_t x_t
++
+5\sum_{t=1}^{T}\pi_t e_t .
+\label{eq:app_q2_actual_cost}
+\end{equation}
+
+结算时仅读取当前时段及此前已经实现的负荷和光伏数据，
+不利用未来真实数据修改日前决策，因此不存在未来信息泄漏。
+每日结算完成后，将日末储电量作为次日初始状态，实现全年储能状态的连续传递。
+
+\subsection{线性规划形式与求解设置}
+
+将计划购电、储能调度、场景电量分配、CVaR辅助变量和软终端变量
+统一排列为决策向量 $\boldsymbol z$，每日调度模型可整理为
+\begin{equation}
+\begin{aligned}
+\min_{\boldsymbol z}\quad
+&\boldsymbol f^{\mathrm T}\boldsymbol z,\\
+\mathrm{s.t.}\quad
+&\boldsymbol A_{\mathrm{eq}}\boldsymbol z
+=\boldsymbol b_{\mathrm{eq}},\\
+&\boldsymbol A_{\mathrm{ub}}\boldsymbol z
+\leq\boldsymbol b_{\mathrm{ub}},\\
+&\boldsymbol l\leq\boldsymbol z\leq\boldsymbol u .
 \end{aligned}
 \label{eq:q2_standard_lp}
 \end{equation}
-其中，$\boldsymbol z$ 为全部决策变量组成的向量，
-$\boldsymbol f$ 为目标函数系数向量，
+其中，$\boldsymbol f$ 为目标函数系数向量；
 $\boldsymbol A_{\mathrm{eq}}$ 和 $\boldsymbol A_{\mathrm{ub}}$
-分别为等式与不等式约束矩阵，
+分别为等式和不等式约束矩阵；
 $\boldsymbol l$ 和 $\boldsymbol u$ 为变量上下界。
 
-当 $M=30$ 时，单日模型包含26530个变量、13105条等式约束和4350条不等式约束。为提高计算效率，采用稀疏矩阵存储约束，并通过 SciPy 调用 HiGHS 线性规划求解器。求解后，仅保留状态为最优，且等式最大绝对残差与不等式最大违反量均不超过 $10^{-5}$ 的解。
+场景电量分配、供需平衡、储能状态转移和软终端关系构成等式约束；
+计划电提取上限及CVaR超额费用关系构成不等式约束；
+储电量范围、充放电上限及变量非负性通过上下界设置。
 
-每日完成真实结算后，将日末储电量作为次日初始状态，从而实现全年储能状态的连续传递。
+当 $M=30$ 时，单日模型包含26530个变量、
+13105条等式约束和4350条不等式约束。
+程序采用稀疏矩阵存储约束，并通过 SciPy 调用 HiGHS
+线性规划求解器。仅保留求解状态为最优，且等式约束最大绝对残差
+和不等式约束最大违反量均不超过 $10^{-5}$ 的解。
 
+\subsection{参数标定方法}
+\label{app:q2_parameter_calibration}
+
+为防止正式报告期数据参与模型选择，将2025年1月1日至14日设为预热期，
+1月15日至31日设为验证期，2月1日至12月31日设为正式报告期。
+预热期采用预先确定的基准参数运行，并将1月14日末的储电量作为
+验证期的初始状态。
+
+软终端系数的基准值取自问题一储能状态递推约束对应的边际价值。
+问题一144个时段储能边际价值的中位数为
+\begin{equation}
+\kappa_{2,\mathrm{base}}=0.531667 .
+\label{eq:app_q2_kappa_base}
+\end{equation}
+令
+\begin{equation}
+\kappa_2
+=
+\lambda\kappa_{2,\mathrm{base}},
+\label{eq:app_q2_kappa_scaling}
+\end{equation}
+并在验证期内搜索以下参数组合：
+\begin{equation}
+\begin{aligned}
+M&\in\{10,20,30\},\\
+\beta&\in\{0,0.01,0.03,0.05,0.10,0.20,0.25,0.50\},\\
+\lambda&\in\{0.25,0.50,1.00,2.00\}.
+\end{aligned}
+\label{eq:app_q2_parameter_candidates}
+\end{equation}
+置信水平固定为 $\alpha=0.90$。
+基准组合设为
+\[
+M=20,\qquad \beta=0.25,\qquad \lambda=1.
+\]
+
+为避免候选方案通过消耗验证期末储能量获得虚假的费用优势，
+将期末储能量损失按问题一储能边际价值折算，得到筛选得分
+\begin{equation}
+\mathcal S
+=
+C_{\mathrm{val}}
++
+\kappa_{2,\mathrm{base}}
+\left[s_{\mathrm{start}}-s_{\mathrm{end}}\right]_+ ,
+\label{eq:app_q2_selection_score}
+\end{equation}
+其中，$C_{\mathrm{val}}$ 为验证期实际购电费用，
+$[a]_+=\max\{a,0\}$。
+首先保留紧急购电费用不高于基准组合的候选方案，
+再从中选择筛选得分 $\mathcal S$ 最低的参数组合。
+
+最终得到
+\begin{equation}
+M^\ast=30,\qquad
+\beta^\ast=0.20,\qquad
+\lambda^\ast=1,\qquad
+\kappa_2^\ast=0.531667 .
+\label{eq:app_q2_selected_parameters}
+\end{equation}
+该组合在验证期内的总费用为 $1016195.38$ 元，
+紧急购电费用为 $16517.07$ 元；
+相较基准组合分别降低 $59340.07$ 元和 $1497.35$ 元，
+且验证期末储电量恢复至 $6000\,\mathrm{kWh}$。
+
+参数在2025年1月31日完成选择，并在2月1日至12月31日的
+334个正式调度日内保持不变。
+报告期数据不参与参数选择。
+在2025年12月31日设置
+$s_T=6000\,\mathrm{kWh}$ 的硬约束，以保证全年储能状态闭合。
 
 \section{问题二模型检验与局限性分析}
 \label{app:q2_validation}
