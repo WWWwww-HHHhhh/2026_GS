@@ -1,5 +1,3 @@
-"""用历史整日联合残差块生成负荷和光伏场景。"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

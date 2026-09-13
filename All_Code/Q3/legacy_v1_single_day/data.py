@@ -1,5 +1,3 @@
-"""读取官方清洗数据，并统一换算成每个 10 分钟区间的电量。"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

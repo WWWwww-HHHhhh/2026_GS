@@ -1,22 +1,3 @@
-# -*- coding: utf-8 -*-
-"""由已校验的缓存产物绘制论文图，不重新调参、不重新求解。
-
-输入：Data_processing/*.pkl、Results/Tables/forecast_monthly_metrics.csv
-运行：python make_figures_q2.py
-输出：Results/Pictures/ 下 6 张图，每张同时输出 PDF（投稿用）与 PNG（预览用）
-
-六张图的图型：
-    fig_q2_load_pv_fan           四联折线 + 场景分位带（代表日负荷与光伏预测对比）
-    fig_q2_error_monthly         哑铃图（逐月负荷与光伏 WAPE 并排对比）
-    fig_q2_plan_settlement       子弹图式渐变对照柱（轨道 + 实际提取柱 + 计划量目标刻线）
-    fig_q2_soc_heatmap           日内中位储电量曲线 + P10–P90 分位带 + 充放电状态条
-    fig_q2_emergency_curtailment 上下双面板（各自独立纵轴）+ 月度弃光率色条
-    fig_q2_cvar_frontier         参数候选在“验证期总费用—紧急购电费”平面的散点分布
-
-视觉规范：无上/右轴脊、浅色网格、图例去边框置于坐标区上方、低饱和暖调配色；
-大面积色块用 tint() 叠多层做成渐变，避免纯色块的扁平观感；
-文字以 TrueType 嵌入 PDF（pdf.fonttype=42），可直接投稿。
-"""
 from pathlib import Path
 import pickle
 

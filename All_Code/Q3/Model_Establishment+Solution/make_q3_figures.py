@@ -1,11 +1,3 @@
-"""生成问题三论文插图（仓库版：读 Results/Tables，写 Results/Pictures）。
-
-输入：All_Code/Q3/Results/Tables/ 下的 validation_report.json、strategy_summary.csv、
-      forecast_conversion_audit.csv、<策略>/daily.csv、Sall/intervals.csv
-输出：All_Code/Q3/Results/Pictures/q3_fig1..fig6（PNG + SVG）
-运行：python make_q3_figures.py   （依赖 numpy/pandas/matplotlib）
-"""
-
 from __future__ import annotations
 
 import json

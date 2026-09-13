@@ -1,29 +1,3 @@
-# -*- coding: utf-8 -*-
-"""q4_2_variants.py —— 方案 C 的双口径变体驱动（新增文件，不修改既有滚动脚本）。
-
-用途：在**完全相同的物理约束与结算规则**下，只切换两个口径维度，量化"题面歧义"的影响：
-  维度 1 价格信息假设  --price-mode unknown | known
-      unknown：电价在 0:00 未知，用因果预测 + 逐场景价格（Q4_wyh 主口径）
-      known  ：电价在 0:00 已知（Q4_ZJY 口径），把当日实际电价复制到全部 M 个场景
-  维度 2 光伏预报来源  --pv-source q2 | official
-      q2      ：Q2_yy 自建因果预测（WAPE 0.066596），Q4_wyh 原主口径
-      official：附件3 issue=0 + linear_endpoint（WAPE 0.083019），与 Q4_ZJY 同源
-
-选择规则 --select legacy | risk_aware：
-  legacy     ：沿用 Q2 协议（先剔除紧急购电费高于基准配置者，再取"验证期总费用+终端调整"最低）
-  risk_aware ：目标函数含 CVaR，则选参规则也必须含风险项 ——
-               在"验证期总费用 ≤ 最小值×1.01 且紧急购电费不高于基准配置"的候选里，
-               取**验证期日费用 CVaR90 最低**者（并列时取总费用更低者）。
-               容差 1% 是显式写死的，不随数据调整。
-
-另有 --import-cap-kw：R-1 联络线容量敏感性（默认不设限，因为题目未给该约束）。
-
-运行示例：
-  python q4_2_variants.py --pv-source official --price-mode unknown --select risk_aware --tag V_official_unknown
-输出：
-  Data_processing/variants/<tag>_results.pkl
-  Results/Tables/<tag>_tuning.xlsx、<tag>_daily.csv、<tag>_summary.csv
-"""
 from __future__ import annotations
 
 import argparse

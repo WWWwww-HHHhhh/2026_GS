@@ -1,9 +1,3 @@
-"""Q3 滚动窗口线性规划。
-
-本模块只优化题目定义的真实费用。极小的吞吐量系数仅用于消除数值退化，
-不会计入导出的真实结算费用。
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

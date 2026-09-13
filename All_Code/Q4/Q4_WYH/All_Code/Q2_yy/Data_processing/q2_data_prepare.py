@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Q2_yy 数据准备：只读取官方附件，不生成、插值或替换任何观测值。"""
 from pathlib import Path
 import pickle
 import sys

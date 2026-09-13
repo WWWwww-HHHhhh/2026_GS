@@ -1,16 +1,3 @@
-"""Audit official issue-time PV forecast conversion (linear vs step).
-
-The linear-endpoint conversion is chosen a priori from the physical continuity of PV
-power between hourly nodes, NOT tuned on the formal backtest period. As independent
-evidence a January history window (day 1-30, before the formal Feb-Dec backtest)
-confirms that linear interpolation beats step holding; the formal period is reported
-separately and used only for diagnosis, never for selecting the conversion method.
-
-Outputs (both written to All_Code/Q3/Results/Tables):
-  forecast_conversion_audit_jan.csv  - January selection window (method-choice evidence)
-  forecast_conversion_audit.csv      - formal Feb-Dec window (diagnostic; feeds fig3/tab3)
-"""
-
 from __future__ import annotations
 
 from pathlib import Path

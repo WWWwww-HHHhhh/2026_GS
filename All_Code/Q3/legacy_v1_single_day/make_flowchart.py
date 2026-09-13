@@ -1,5 +1,3 @@
-"""生成与 Q3 代码一致的论文流程图。"""
-
 from __future__ import annotations
 
 import sys

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Q2_yy可移植路径；所有路径由当前文件位置推导。"""
 from pathlib import Path
 
 MODEL_DIR = Path(__file__).resolve().parent          # All_Code/Q2_yy/Model_Establishment+Solution

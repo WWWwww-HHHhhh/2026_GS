@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-"""独立严格校验脚本：任何一项检查失败均返回非零退出码。"""
 from pathlib import Path
 from datetime import datetime
 import hashlib

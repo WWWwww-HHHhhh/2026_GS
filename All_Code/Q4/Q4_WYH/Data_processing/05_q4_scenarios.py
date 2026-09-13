@@ -1,25 +1,3 @@
-# -*- coding: utf-8 -*-
-"""05_q4_scenarios.py —— 问题 4-2 的「价格—负荷—光伏」联合场景生成。
-
-【与 Q2 的关系】Q2 的场景只有负荷与光伏两维（`All_Code/Q2_yy/.../scenarios.py`）。
-Q4-2 因为电价变成未知随机量，必须在同一套经验残差块框架里**增加价格残差维度**，
-并且三个变量**必须抽同一个历史日**，以保留它们之间的相依结构（禁止各自独立打乱）。
-
-【口径】
-  - 残差定义：res = 实际 − 当日因果预测（负荷用 Lhat、光伏用 Ghat、价格用 price_hat）。
-  - 残差块库：第 j 天结束后，把 (load_res_j, pv_res_j, price_res_j) 作为一个整日联合块入库（j≥1）。
-  - 决策日 i 只抽**严格早于 i**的最近 30 个已结束日（HISTORY_WINDOW=30）。
-  - 有放回抽样，种子 SEED*1000+i，与 Q2 同构，保证 M 变化时嵌套可比。
-  - 物理截断：负荷、光伏 ≥ 0；价格 ≥ 附件4 全年最小电价量级（保持价格正性）。截断次数全程记录。
-
-【产出】
-  Data_processing/scenarios_M{M}.pkl         L_all(D,M,T), G_all(D,M,T), P_all(D,M,T) + 元信息
-  Results/Tables/q4_scenario_diagnostics.csv 逐日诊断（截断数、场景均值与中心偏差、块来源日）
-  Results/Tables/q4_scenario_report.md       人读报告
-  Data_processing/scenario_demo_M{M}.csv     代表日长表（供画扇形图）
-
-运行：python 05_q4_scenarios.py --M 20 [--pv-source q2|official]
-"""
 from __future__ import annotations
 
 import argparse

@@ -1,32 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""02_global_transform.py -- 2026 CUMCM C 题 数据转换（Data_clean -> Data_transformation）。
-
-将上一阶段 Data_clean 中的 *_clean.csv 标准化为统一内部格式，并导出模板对齐映射。
-
-本脚本只做"由原值严格推导"的转换，不新增、不伪造任何数据：
-  1. 时间映射：附件 1/2/4 的时间标签按"时段结束时刻"映射为内部序号 1..144。
-     0:10 -> 时段1 (0:00,0:10]；...；24:00 / 0:00+1 -> 时段144 (23:50,24:00]。
-  2. 单位换算：负载、光伏为功率 kW，乘 Delta t = 1/6 h 得到每时段电量 kWh；
-     电价为 元/kWh，保持不变。附件3 的小时级光伏预报保留原 kW 结构（不插值）。
-  3. 日期解析：附件 2/3/4 的日期列统一转为 datetime；附件3 保留
-     "预报时刻(0/6/12/18) + 预测1~24小时" 结构，日期只在同一天 4 个发布时刻块内向下填充。
-  4. 模板对齐：导出 time_map.csv（内部 1..144 与模板区间标签双向映射）与
-     template_map.csv（result1~result4 各 sheet 的填写位置映射），不改动模板表头。
-  5. 输出：df_p1.parquet / df_load.parquet / df_pv.parquet / df_fcst.parquet /
-     df_price.parquet / time_map.csv / template_map.csv。
-  6. 校验：每文件行数 = 144 / 365 / 365x4；打印转换后 min/max；144 个时段列无缺漏、无重复。
-
-本脚本不进行建模，因此不会把整点值复制 6 次、不会把"预测1小时"当作前 1 小时、
-也不会在 0 点决策中使用当天未来值（预报保持 24 列原始小时结构，不做任何平移）。
-
-依赖：numpy、pandas、pyarrow。模板映射优先使用内置的确定性布局（依据官方
-result1~result4 模板），若本机存在 result*.xlsx 且装有 openpyxl 可另行核对表头。
-
-运行：
-    python 02_global_transform.py [--clean-dir ...] [--out-dir ...]
-"""
-
 from __future__ import annotations
 
 import argparse

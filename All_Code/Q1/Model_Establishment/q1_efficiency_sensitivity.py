@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""问题1效率口径灵敏度：比较单向效率90%与往返效率90%。
-
-该脚本只生成对照结果，不改变 q1_model.py 的主模型参数，也不覆盖 result1.xlsx。
-"""
-
 import importlib.util
 import json
 import math

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-"""生成负荷、光伏与电价的论文用月均折线图。"""
 from pathlib import Path
 
 import matplotlib

@@ -1,12 +1,3 @@
-"""Causal Q4-3 rolling backtest under real-time, volatile electricity prices.
-
-The problem only states that external-grid prices fluctuate in real time. It
-does not state that a whole day's 144 prices are published at midnight. Thus
-the optimizer receives an issue-time price forecast and historical residual
-blocks. The actual price is read only after a slot is executed, for settlement
-and for the next days' historical residual pool.
-"""
-
 from __future__ import annotations
 
 import argparse

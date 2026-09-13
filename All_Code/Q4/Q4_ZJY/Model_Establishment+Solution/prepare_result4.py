@@ -1,5 +1,3 @@
-"""Prepare typed result3 cell matrices from the validated Sall long records."""
-
 from __future__ import annotations
 
 import argparse

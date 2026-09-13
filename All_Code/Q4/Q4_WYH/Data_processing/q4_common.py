@@ -1,14 +1,3 @@
-# -*- coding: utf-8 -*-
-"""q4_common.py —— 问题 4-2 公共口径与工具（路径、常量、兼容反序列化、时段标签）。
-
-口径依据：`others/Q4重现Q2的口径说明.md`。本模块只提供**口径常量与工具**，不含任何模型逻辑。
-
-为什么需要 pickle 兼容层：
-    Q2_yy 的 `forecasts.pkl` 由 pandas<2.0 写出（BlockManager 的 placement 存为 slice），
-    当前环境 pandas 2.3.3 拒绝反序列化。本模块在加载时对 `new_block` 打补丁，
-    把 slice/list 形式的 placement 规范化为 BlockPlacement，**只改读取方式，不改数据内容**。
-    读取成功后会做形状与数值校验，防止"读进来了但读错"。
-"""
 from __future__ import annotations
 
 import hashlib

@@ -1,17 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-单日两阶段随机线性规划求解器（含 CVaR 风险项）。
-
-第一阶段决策（跨场景共享，体现非预期性）：x 购电、c 充电、r 放电、s 储电量、xi 软终端偏差。
-第二阶段决策（各场景独立）：y 计划电提取、u 未提取、e 紧急购电、g 光伏利用、w 弃光、v 供给过剩弃电。
-
-模型要点：
-    电量平衡 y + e + g + r = L + c；储能递推 s_t = s_{t-1} + eta_c*c_t - r_t/eta_r；
-    紧急购电按交易时刻电价的 5 倍计费；
-    惩罚项 eps 与软终端罚项 kappa2 仅用于稳定求解，不计入对外报告的费用。
-
-求解：环境无 PuLP，用 scipy.optimize.linprog(HiGHS) 配合稀疏矩阵自建模型。
-"""
 import numpy as np
 from scipy.optimize import linprog
 from scipy.sparse import coo_matrix

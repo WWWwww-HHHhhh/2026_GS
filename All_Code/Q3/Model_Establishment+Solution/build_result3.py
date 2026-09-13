@@ -1,17 +1,3 @@
-"""按官方模板写出 result3.xlsx（纯 Python，替代早期依赖 Node 内部包的 build_result3.mjs）。
-
-输入：Results/Tables/result3_payload.json（由 prepare_result3.py 生成）
-      Data/附件/附件5/result3.xlsx（官方模板）
-输出：Results/Tables/result3.xlsx
-运行：python build_result3.py [--folder ../Results/Tables] [--template ...]
-
-时间映射说明（与官方模板一致，勿改）：
-  · “计划购电量/调整购电量”每行 146 列：144 个十分钟时段 + 全天购电量 + 全天购电费。
-    时段列的标签为区间文字，普通日期行的最后一格承接次日首区间（跨行展示）。
-  · “充放电量”每日 6 行（四个小时一段），储电量仅在当日 0:00 与 24:00 两行给出。
-  · “紧急购电量”按事件逐行记录，日期只在当日首行给出。
-"""
-
 from __future__ import annotations
 
 import argparse

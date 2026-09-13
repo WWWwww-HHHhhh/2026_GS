@@ -1,11 +1,3 @@
-"""Q4-3 causal price scenarios and stochastic receding-horizon LP.
-
-The price observed after an issue time is used only for realized settlement.
-Optimization sees a zero-hour price forecast plus residual blocks from days
-strictly before the target day. Load and PV use the existing Q3 issue-specific
-scenario generator, and all three residuals share its sampled source days.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

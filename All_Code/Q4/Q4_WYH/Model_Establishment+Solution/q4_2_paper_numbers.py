@@ -1,12 +1,3 @@
-# -*- coding: utf-8 -*-
-"""q4_2_paper_numbers.py —— 把论文要用的全部数字从**已落盘产物**自动汇总，杜绝手抄。
-
-只读 Results/Tables 下的结果表，不重算任何模型；输出：
-  Results/Tables/q4_2_paper_numbers.csv   论文数字总表（含出处文件）
-  Results/Tables/q4_2_paper_numbers.md    人读版
-
-运行：python q4_2_paper_numbers.py
-"""
 from __future__ import annotations
 
 import sys

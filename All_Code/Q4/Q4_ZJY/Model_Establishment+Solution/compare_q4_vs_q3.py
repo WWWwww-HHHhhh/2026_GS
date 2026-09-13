@@ -1,8 +1,3 @@
-"""对比波动电价(Q4-3) vs 固定电价(Q3) 六策略费用与结构。
-
-读 Q4 与 Q3 的 strategy_summary.csv，输出对比表 compare_fluc_vs_fixed.csv 到 Results/Tables。
-"""
-
 from __future__ import annotations
 
 from pathlib import Path

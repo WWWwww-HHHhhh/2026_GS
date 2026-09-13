@@ -1,26 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-问题1：含弃光和储能边际价值的连续 LP（HiGHS 求解）
-
-输入数据：All_Code/Data_preprocessing/Data_clean/附件1_clean.csv
-         （144 个 10 min 时段的电价、小区负载、光伏预测功率，清洗后 UTF-8 BOM 文件）
-         Data/附件/附件5/result1.xlsx（官方结果模板）
-运行方法：python q1_model.py（依赖 numpy/pandas/scipy/openpyxl；Python 3.13 验证通过）
-输出位置：All_Code/Q1/Results/Tables/（result1.xlsx、q1_timeseries.csv、
-q1_storage_marginal_value_for_q2.csv、q1_summary.json）
-
-模型（确定性单日，功率 × 1/6 转为时段电量 kWh）：
-    第一阶段：min C1 = sum_t pi_t * x_t
-    第二阶段：s.t. C1 <= C1* + tol，min sum_t(c_t+r_t)
-    s.t. x_t + (G_t - w_t) + r_t = L_t + c_t        电量平衡（含弃光）
-         s_t = s_{t-1} + eta_c*c_t - r_t/eta_r     储能递推
-         S_min <= s_t <= S_max, s_0 = s_T = 6000   SOC 边界（问题1硬周期）
-         0 <= c_t, r_t <= 833.3333                  5000 kW 折算时段电量
-         0 <= w_t <= G_t, x_t >= 0
-对偶变量从第一阶段纯购电费用 LP 提取；第二阶段只负责在近似等费用解中减少无意义吞吐。
-mu_bal = 时段边际供电成本；储能边际价值 = -mu_soc。符号约定用单个约束 RHS 扰动核验。
-"""
-
 import json
 import shutil
 import sys

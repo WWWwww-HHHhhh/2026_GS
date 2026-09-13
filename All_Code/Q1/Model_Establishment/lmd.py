@@ -1,4 +1,3 @@
-"""Compare the two solved efficiency cases with a compact dumbbell chart."""
 import json
 from pathlib import Path
 import matplotlib

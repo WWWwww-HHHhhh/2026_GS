@@ -1,5 +1,3 @@
-"""Q3 公共配置与路径定义。"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

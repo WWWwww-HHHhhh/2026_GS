@@ -1,5 +1,3 @@
-"""Reopen and independently audit the saved official-template Q3 workbook."""
-
 from __future__ import annotations
 
 from pathlib import Path

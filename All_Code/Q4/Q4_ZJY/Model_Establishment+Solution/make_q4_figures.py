@@ -1,8 +1,3 @@
-"""生成 Q4-3 论文插图：波动电价特征、波动 vs 固定电价六策略对比。
-
-读附件4/附件1 电价与 Results/Tables/strategy_summary.csv，写 Results/Pictures。
-"""
-
 from __future__ import annotations
 
 from pathlib import Path

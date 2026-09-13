@@ -1,9 +1,3 @@
-"""Q4-3 导出驱动：修正 metadata → 复核 → payload → 写 result4-3.xlsx → 工作簿校验。
-
-复用 Q3 导出链（validate_q3 / prepare_result3 / build_result3），模板换 result4-3.xlsx，
-工作簿校验用 Q4 的 validate_result4_workbook.py。
-"""
-
 from __future__ import annotations
 
 import json

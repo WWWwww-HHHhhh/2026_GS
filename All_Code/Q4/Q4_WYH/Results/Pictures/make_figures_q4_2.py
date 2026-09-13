@@ -1,16 +1,3 @@
-# -*- coding: utf-8 -*-
-"""make_figures_q4_2.py —— 问题 4-2 的论文级图表（只读结果，不重算、不调参）。
-
-产出 6 张图，每张同时输出 PDF（投稿用，矢量）与 PNG（预览用）：
-  fig_q4_price_forecast      电价：逐日均价曲线 + 日内形状带 + 预测误差分位
-  fig_q4_representative_day  代表日：电价/负荷/光伏 + 计划购电与提取 + 充放电 + SOC
-  fig_q4_monthly_cost        逐月费用分解（计划购电费 / 紧急购电费）+ 紧急购电率
-  fig_q4_plan_vs_extract     计划量 vs 提取量 vs 紧急购电的全年分布（月度）
-  fig_q4_scenario_fan        代表日的价格—负荷—光伏场景扇形
-  fig_q4_frontier_baseline   风险—成本前沿（β 网格）+ 基线对比
-
-运行：cd Results/Pictures && python make_figures_q4_2.py
-"""
 from __future__ import annotations
 
 import pickle

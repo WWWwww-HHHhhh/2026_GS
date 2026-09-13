@@ -1,10 +1,3 @@
-"""Q3 命令行入口。
-
-示例
-python main_q3.py --date 2025-03-20 --strategy Sall --quick
-python main_q3.py --date 2025-03-20 --compare --quick
-"""
-
 from __future__ import annotations
 
 import argparse

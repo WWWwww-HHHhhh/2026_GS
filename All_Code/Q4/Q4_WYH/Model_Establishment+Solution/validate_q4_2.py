@@ -1,16 +1,3 @@
-# -*- coding: utf-8 -*-
-"""validate_q4_2.py —— 问题 4-2 的独立验证、基线与稳健性。
-
-包含四类内容：
-  A. 结构核验（口径 spec §7 的 Q4-2 版本，独立于 Excel 回读，直接在解向量上验算）
-  B. 基线对比：B0 完美预见下界 / B1 Q2固定价策略 / B2 实时缺口购电 / B3 典型日(Q1)策略
-  C. 结算口径 R1(实际波动价) vs R2(0:00 预测价) 的对照
-  D. 场景数 M 稳健性与价格不确定度注入（可选）
-
-运行：
-    python validate_q4_2.py                     # A + B + C
-    python validate_q4_2.py --sensitivity       # 追加 D（重跑报告期，耗时数分钟）
-"""
 from __future__ import annotations
 
 import argparse

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-"""严格因果的负荷/光伏预测：逐日滚动训练，候选模型只按前一日误差选择。"""
 import os
 import pickle
 import time

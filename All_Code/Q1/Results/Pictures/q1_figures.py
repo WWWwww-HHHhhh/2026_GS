@@ -1,22 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-问题1 结果图：4 张矢量图（图内不写大标题，论文中引用时加题注）。
-
-输入数据：All_Code/Q1/Results/Tables/q1_timeseries.csv（先运行 q1_model.py 生成）
-运行方法：python q1_figures.py              # 生成全部 4 张
-          python q1_figures.py --figure 1   # 只重画第 1 张
-          （依赖 numpy/pandas/matplotlib）
-输出位置：All_Code/Q1/Results/Pictures/
-          q1_fig1_timeseries.pdf / .png
-          q1_fig2_dispatch.pdf  / .png
-          q1_fig3_soc.pdf       / .png
-          q1_fig4_marginal_value.pdf / .png
-论文引用：../All_Code/Q1/Results/Pictures/q1_figX_*.pdf
-
-视觉规范（四图统一）：
-    无上/右轴脊，仅保留浅灰左/下轴脊；浅色横向网格；图例去边框、置于坐标区上方；
-    暖调低饱和配色；文字以 TrueType 嵌入 PDF（pdf.fonttype=42），可直接投稿。
-"""
 from pathlib import Path
 import argparse
 

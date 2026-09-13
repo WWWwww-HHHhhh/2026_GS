@@ -1,5 +1,3 @@
-"""Run reproducible Q3 strategy backtests from verified Q2_yy and official data."""
-
 from __future__ import annotations
 
 import argparse

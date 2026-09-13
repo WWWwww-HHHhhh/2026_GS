@@ -1,5 +1,3 @@
-"""Q3 单日滚动仿真主流程。"""
-
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass

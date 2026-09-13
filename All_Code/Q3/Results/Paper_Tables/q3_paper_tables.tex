@@ -1,11 +1,6 @@
-% 问题三论文用紧凑表格
-% 数据来源：All_Code/Q3/Results/Tables/result3.xlsx
-% 需要宏包：graphicx、xcolor、colortbl、float
-
 \definecolor{qthreeheader}{RGB}{174,205,230}
 \definecolor{qthreedata}{RGB}{229,241,250}
 
-% 表1，按题目表1字段整理，并增加“类型”列同时展示计划值与最终调整值
 \begin{table}[H]
     \centering
     \caption{指定日期计划与调整购电结果}
@@ -41,7 +36,6 @@
     {\footnotesize 注：除购电费外，其余数值单位均为 \(\mathrm{kWh}\)。计划表示每日0:00制定的购电量，调整表示日内更新后最终生效的购电量。}
 \end{table}
 
-% 表2，按题目表2字段转置压缩，每格依次为充电量和放电量
 \begin{table}[H]
     \centering
     \caption{指定日期储能充放电量及首末储电量}
@@ -74,7 +68,6 @@
     {\footnotesize 注：单位为 \(\mathrm{kWh}\)，前六行每格依次表示充电量和放电量。}
 \end{table}
 
-% 表3，四个日期横向并列，空白表示该日期无更多紧急购电时段
 \begin{table}[H]
     \centering
     \caption{指定日期紧急购电结果}

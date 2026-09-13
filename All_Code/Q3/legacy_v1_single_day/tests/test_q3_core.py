@@ -1,5 +1,3 @@
-"""不依赖比赛数据的 Q3 核心烟雾测试。"""
-
 from __future__ import annotations
 
 import sys

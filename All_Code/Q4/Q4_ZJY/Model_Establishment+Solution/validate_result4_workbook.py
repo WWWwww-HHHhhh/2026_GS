@@ -1,5 +1,3 @@
-"""Reopen and independently audit the saved official-template Q4-3 workbook."""
-
 from __future__ import annotations
 
 import argparse

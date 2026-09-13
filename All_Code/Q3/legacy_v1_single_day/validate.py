@@ -1,5 +1,3 @@
-"""Q3 结果的物理约束与结算口径检查。"""
-
 from __future__ import annotations
 
 import numpy as np

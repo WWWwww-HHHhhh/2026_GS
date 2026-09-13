@@ -1,11 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-问题二论文用表生成（2026 数模 C 题）。
-
-数据全部取自前置步骤已落盘的产物，不重新求解；每个统计量均带样本量列。
-输出 4 张表：kappa2_calibration（复核）、tuning_sensitivity（复核）、
-monthly_metrics、annual_cost_summary。
-"""
 import os
 import pickle
 import traceback

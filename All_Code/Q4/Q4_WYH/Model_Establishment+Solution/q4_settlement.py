@@ -1,13 +1,3 @@
-# -*- coding: utf-8 -*-
-"""q4_settlement.py —— 问题 4-2 的因果结算（与 Q2 的 `settlement.py` 逐行同构）。
-
-【口径】逐时段原样执行 0:00 制定的 x/c/r，不读取当天任何未来真实值：
-  1. demand = L_actual[t] + c[t] − r[t]；
-  2. 若日前固定放电造成供给过剩，记为弃电 spill（题目只要求"不低于负荷"，不允许事后缩减放电来美化 SOC 与费用）；
-  3. 先用光伏、再用计划量提取、最后紧急购电：g = min(G, demand)，y = min(x, 剩余)，e = 剩余 − y；
-  4. 计划购电费 = Σ λ_t·x_t（λ 为该日**实际**波动电价，即"按计划购电量计价"）；
-  5. 紧急购电费 = Σ 5·λ_t·e_t（交易时刻电价的 5 倍）。
-"""
 from __future__ import annotations
 
 import numpy as np

@@ -1,25 +1,3 @@
-# -*- coding: utf-8 -*-
-"""03_q4_dataset.py —— 问题 4-2（波动电价下重算问题2）数据集构建。
-
-【口径】严格遵守 `others/Q4重现Q2的口径说明.md`：
-  - 只读取官方附件与项目既有派生产物，不生成、不插值、不平移、不替换任何观测值。
-  - 矩阵朝向统一为 (T=144, D=365)（列 = 自然日），与 Q2_yy 一致。
-  - 负荷/光伏：原始 kW 严格 ×(1/6) h = kWh/时段。
-  - 电价：附件4，元/kWh，逐日不同（这是 Q4-2 相对 Q2 的唯一输入替换）。
-
-【本模块产出】
-  Data_processing/q4_dataset.pkl
-  Results/Tables/q4_data_audit.csv   （逐项核验，全部必须 PASS）
-  Results/Tables/q4_data_audit.md    （人读版核验摘要）
-
-【数据真实性设计】用两条**互相独立**的路径重建同一批观测值并比对：
-  路径 A：附件 xlsx → Data_clean → Data_transformation/*.parquet（本脚本读 parquet）
-  路径 B：附件 xlsx → Q2_yy/q2_data_prepare.py → q2_dataset.pkl（Q2 已定稿产物）
-两条路径的负荷/光伏必须逐元素完全相同（差值 = 0），否则报错退出。
-
-运行：
-    python 03_q4_dataset.py
-"""
 from __future__ import annotations
 
 import hashlib

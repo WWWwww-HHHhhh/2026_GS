@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-按官方模板导出 result2.xlsx（2026 数模 C 题 问题二）。
-
-导出结构与官方模板保持一致：sheet 名、列名、列顺序与日期格式均按模板填写，
-不新增 sheet 或列；相邻的十分钟紧急购电时段合并为连续区间后填写。
-"""
 import os
 import pickle
 import traceback

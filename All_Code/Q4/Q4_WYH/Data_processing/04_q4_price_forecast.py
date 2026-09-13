@@ -1,30 +1,3 @@
-# -*- coding: utf-8 -*-
-"""04_q4_price_forecast.py —— 问题 4-2 的电价因果预测器（Q4 相对 Q2 的唯一新增预测链路）。
-
-【为什么需要它】Q2 的电价是已知常数序列（附件1，逐日相同），0:00 决策时无需预测；
-Q4-2 的电价逐日逐时段波动，0:00 决策时**未知**，因此必须给出"当日 144 个时段电价"的日前预测，
-并把它交给场景生成器变成价格不确定性。这是 Q4-2 相对 Q2 的全部预测侧增量。
-
-【因果纪律（不可破坏）】
-  - 预测决策日 i 时，只允许使用 j < i 的已实现电价；
-  - 候选模型的挑选规则仿照 Q2 已定稿的 `forecast.py`：用**前一日（i−1）**的 WAPE 选模型，
-    再用截至 i−1 的数据重估参数生成 i 日预测；i−1 日的候选本身也只使用 j < i−1 的数据；
-  - 不读取报告期任何未来值，不使用报告期指标反向调参。
-
-【候选模型族】全部由"日内形状 × 日级水平"两段式构成（电价的主导结构是日内形状）：
-  naive_last         昨日的实际形状（朴素基线）
-  naive_dow7         上周同星期几的实际形状
-  shape_{mean|med}{K}  K ∈ {7,14,28} 日窗口内（日级水平, 归一化日内形状）的均值/中位数组合
-  sha dow28_{mean|med} 仅用最近 28 天中同星期几的日样本
-
-【产出】
-  Data_processing/price_forecast.pkl       price_hat(144,365), price_res(144,365), 选择日志
-  Results/Tables/q4_price_forecast_monthly.csv   逐月 MAE/WAPE（选定模型 vs 朴素基线）
-  Results/Tables/q4_price_forecast_selection.csv 逐日选择日志
-  Results/Tables/q4_price_forecast_report.md     含真实性核验的人读报告
-
-运行：python 04_q4_price_forecast.py [--force]
-"""
 from __future__ import annotations
 
 import pickle

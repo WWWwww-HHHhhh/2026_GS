@@ -1,9 +1,3 @@
-"""CUMCM 2026 C Q3, strictly causal rolling stochastic linear program.
-
-All optimization quantities are 10-minute energy in kWh. This module reads
-official attachments and frozen Q2_yy caches but never modifies them.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

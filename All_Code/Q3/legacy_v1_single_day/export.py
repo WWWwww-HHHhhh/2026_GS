@@ -1,5 +1,3 @@
-"""导出 Q3 单日闭环结果。"""
-
 from __future__ import annotations
 
 import json

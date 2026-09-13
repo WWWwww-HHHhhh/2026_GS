@@ -1,9 +1,3 @@
-"""Independent, source-backed checks for the formal Q3 backtest.
-
-The checks recompute realized energy and fees from interval records rather
-than trusting the optimizer's objective or the runner's daily totals.
-"""
-
 from __future__ import annotations
 import sys as _sys
 from pathlib import Path as _Path
